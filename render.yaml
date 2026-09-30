@@ -2,7 +2,6 @@ services:
   - type: web
     name: sri-nachiya-medicals
     env: node
-    plan: free
     buildCommand: npm install
     startCommand: node apps/shop/server.js
     envVars:
