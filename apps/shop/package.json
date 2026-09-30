@@ -1,0 +1,14 @@
+{
+  "name": "sri-nachiya-shop",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Billing and stock for Sri Nachiya Medicals — runs entirely on the shop's own computer",
+  "engines": { "node": ">=22.5" },
+  "scripts": {
+    "start": "node server.js",
+    "check": "node -e \"import('./logic.js').then(async L => { const db = await import('./db.js'); db.open(); console.log(JSON.stringify(L.integrityCheck(), null, 2)); })\"",
+    "backup": "node -e \"import('./db.js').then(db => { db.open(); console.log(db.backup('manual')); })\""
+  },
+  "dependencies": {}
+}

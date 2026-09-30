@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sri Nachiya Medicals — Counter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* One person runs this shop: the owner bills, takes deliveries and sets
+   prices. Every screen is built for someone who knows pharmacy but has never
+   used billing software — plain words, big targets, nothing to memorise. */
+
+:root{
+  --canvas:#E7ECE7; --surface:#FFFFFF; --ink:#12211C; --muted:#56655F;
+  --line:#CBD5CD; --green:#0E6B4F; --green-deep:#08442F; --green-wash:#DCEDE4;
+  --warn:#8A5200; --warn-wash:#FBEFD9; --stop:#A31F17; --stop-wash:#FBE4E1;
+  --tape:#FCFCFA; --focus:#0E6B4F; --bar:#08442F; --on-bar:#EAF5EF; --on-green:#FFFFFF;
+  --r:4px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --canvas:#0B1411; --surface:#131E1A; --ink:#E6EFE9; --muted:#93A69D;
+    --line:#26362F; --green:#3FA37C; --green-deep:#8FD9B8; --green-wash:#152B22;
+    --warn:#D9A04A; --warn-wash:#2E2314; --stop:#E4796E; --stop-wash:#331916;
+    --tape:#1A2420; --focus:#8FD9B8; --bar:#0A2E20; --on-bar:#EAF5EF; --on-green:#06140F;
+  }
+}
+:root[data-theme="dark"]{
+  --canvas:#0B1411; --surface:#131E1A; --ink:#E6EFE9; --muted:#93A69D;
+  --line:#26362F; --green:#3FA37C; --green-deep:#8FD9B8; --green-wash:#152B22;
+  --warn:#D9A04A; --warn-wash:#2E2314; --stop:#E4796E; --stop-wash:#331916;
+  --tape:#1A2420; --focus:#8FD9B8; --bar:#0A2E20; --on-bar:#EAF5EF; --on-green:#06140F;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:var(--canvas); color:var(--ink);
+  font-family:Archivo,system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:16px; line-height:1.45;
+  font-variant-numeric:tabular-nums lining-nums;
+}
+button,input,select{font:inherit;color:inherit;font-variant-numeric:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------------------------------------------------------- frame */
+.app{display:flex;flex-direction:column;min-height:100%}
+.topbar{
+  display:flex;align-items:center;gap:10px 18px;flex-wrap:wrap;
+  padding:10px 18px;background:var(--bar);color:var(--on-bar);
+}
+.shopname{font-weight:700;font-size:18px;letter-spacing:-.01em}
+.spacer{margin-left:auto}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{
+  background:transparent;border:0;color:var(--on-bar);cursor:pointer;opacity:.78;
+  font-weight:600;font-size:15px;padding:7px 14px;border-radius:999px;
+}
+.tab:hover{opacity:1}
+.tab[aria-selected="true"]{opacity:1;background:rgba(255,255,255,.18)}
+.status{
+  display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;
+  padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.14);
+}
+.dot{width:8px;height:8px;border-radius:50%;background:#6FD8A6;flex:none}
+.dot.off{background:#F0B45A}
+
+.attn{
+  display:flex;gap:6px 22px;flex-wrap:wrap;align-items:center;
+  padding:8px 18px;background:var(--warn-wash);border-bottom:1px solid var(--line);font-size:14px;
+}
+.attn b{font-weight:700}
+.linkbtn{background:none;border:0;padding:0;color:var(--green-deep);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+
+.view{flex:1;padding:16px 18px 22px;min-height:0}
+.billgrid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+@media (max-width:920px){ .billgrid{grid-template-columns:1fr} }
+
+h2.page{margin:0 0 4px;font-size:24px;letter-spacing:-.015em;text-wrap:balance}
+p.lead{margin:0 0 16px;color:var(--muted);max-width:68ch}
+
+/* ---------------------------------------------------------- shared pieces */
+.block{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.block + .block{margin-top:14px}
+.block-head{padding:12px 16px 11px;border-bottom:1px solid var(--line)}
+.block-head h3{margin:0;font-size:16px;font-weight:700}
+.block-head p{margin:3px 0 0;font-size:14px;color:var(--muted);max-width:72ch}
+.block-body{padding:14px 16px}
+.muted{color:var(--muted)}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:15px}
+thead th{
+  text-align:left;font-weight:500;font-size:13px;color:var(--muted);
+  padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap;
+}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+.num{text-align:right;white-space:nowrap}
+.strong{font-weight:600}
+.sub{font-size:13px;color:var(--muted);margin-top:1px}
+tr.warn td{background:var(--warn-wash)}
+.x{
+  border:1px solid var(--line);background:transparent;border-radius:var(--r);
+  width:32px;height:32px;cursor:pointer;color:var(--muted);font-size:18px;line-height:1;
+}
+.x:hover{border-color:var(--stop);color:var(--stop)}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:6px;vertical-align:1px}
+.tag.h1{background:var(--stop-wash);color:var(--stop)}
+.tag.near{background:var(--warn-wash);color:var(--warn)}
+.tag.out{background:var(--stop-wash);color:var(--stop)}
+.eg{font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:0 5px;margin-left:6px;white-space:nowrap}
+
+.btn{
+  border:1px solid var(--line);background:var(--surface);border-radius:var(--r);
+  padding:11px 16px;cursor:pointer;font-weight:600;font-size:15px;
+}
+.btn:hover:not(:disabled){border-color:var(--green)}
+.btn.primary{background:var(--green);border-color:var(--green);color:var(--on-green)}
+.btn.primary:disabled{opacity:.45;cursor:not-allowed}
+.btn.big{padding:15px 18px;font-size:17px;width:100%}
+.btn.small{padding:6px 12px;font-size:14px}
+.btn.outline{border-color:var(--green);color:var(--green-deep);background:transparent}
+
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface)}
+.seg button{border:0;border-right:1px solid var(--line);background:transparent;padding:10px 16px;cursor:pointer;font-weight:600;font-size:15px}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--green);color:var(--on-green)}
+
+.field label{display:block;font-size:14px;font-weight:500;margin-bottom:4px}
+.field .hint{font-size:13px;color:var(--muted);margin-top:4px}
+.field input,.field select{
+  width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:var(--r);
+  background:var(--surface);font-size:16px;
+}
+.field input:disabled{background:var(--canvas);color:var(--muted);cursor:not-allowed}
+.formgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.formgrid .span2{grid-column:span 2}
+.formgrid .span4{grid-column:1/-1}
+@media (max-width:700px){ .formgrid{grid-template-columns:1fr 1fr} .formgrid .span4,.formgrid .span2{grid-column:1/-1} }
+.row2{display:flex;gap:8px}
+
+.msg{font-size:14.5px;line-height:1.4;padding:10px 12px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface)}
+.msg.bad{background:var(--stop-wash);border-color:var(--stop);color:var(--stop)}
+.msg.warn{background:var(--warn-wash);border-color:var(--warn);color:var(--warn)}
+.msg.ok{background:var(--green-wash);border-color:var(--green);color:var(--green-deep)}
+
+/* ---------------------------------------------------------- bill: search is the hero */
+.searchwrap{position:relative}
+#q{
+  width:100%;border:2px solid var(--green);border-radius:var(--r);background:var(--surface);
+  padding:16px 18px;font-size:24px;font-weight:500;letter-spacing:-.015em;
+}
+#q::placeholder{color:var(--muted);font-weight:400;letter-spacing:0}
+#q:focus{outline:none;box-shadow:0 0 0 3px var(--green-wash)}
+.help{margin:7px 2px 0;font-size:14px;color:var(--muted)}
+.results{
+  position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:0 12px 28px rgba(8,40,28,.18);max-height:360px;overflow:auto;
+}
+.res{
+  display:grid;grid-template-columns:1fr auto;gap:3px 14px;align-items:center;
+  padding:11px 16px;cursor:pointer;border-bottom:1px solid var(--line);
+}
+.res:last-child{border-bottom:0}
+.res[aria-selected="true"]{background:var(--green-wash)}
+.res .nm{font-weight:600;font-size:16.5px}
+.res .stk{grid-row:1/3;grid-column:2;text-align:right;font-size:13.5px;color:var(--muted);white-space:nowrap}
+.res .stk b{display:block;font-size:16px;color:var(--ink)}
+.res.empty{display:block;cursor:default}
+
+.pick{
+  margin-top:12px;padding:14px 16px;background:var(--surface);
+  border:2px solid var(--green);border-radius:var(--r);
+  display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 16px;
+}
+.pick .what{flex:1 1 220px}
+.pick .what b{display:block;font-size:19px}
+#qtyNum{width:96px;padding:10px 12px;font-size:22px;font-weight:700;text-align:center;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+
+.panel{border-radius:var(--r);padding:14px 16px;margin-top:12px;border:1px solid var(--stop);background:var(--stop-wash)}
+.panel h3{margin:0 0 4px;font-size:16px;color:var(--stop)}
+.panel p{margin:0 0 12px;font-size:14.5px}
+.panel.sub{background:var(--green-wash);border-color:var(--green)}
+.panel.sub h3{color:var(--green-deep)}
+.subrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:15px}
+
+.billsheet{margin-top:14px}
+.emptybill{padding:34px 16px;text-align:center;color:var(--muted)}
+.emptybill strong{display:block;color:var(--ink);font-size:17px;margin-bottom:3px}
+
+.rail{display:flex;flex-direction:column;gap:12px}
+.tape{
+  background:var(--tape);border:1px solid var(--line);
+  font-family:"Courier Prime",ui-monospace,monospace;font-size:12px;line-height:1.5;
+  padding:14px 15px 22px;white-space:pre-wrap;position:relative;max-height:330px;overflow:auto;
+}
+.tape .c{text-align:center}
+.tape .big{font-weight:700;font-size:13.5px}
+.totals{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px}
+.trow{display:flex;justify-content:space-between;font-size:14.5px;padding:3px 0;color:var(--muted)}
+.trow b{color:var(--ink);font-weight:500}
+.trow.grand{margin-top:8px;padding-top:10px;border-top:1px solid var(--line);font-size:16px;color:var(--ink);align-items:baseline}
+.trow.grand b{font-size:34px;font-weight:700;letter-spacing:-.02em}
+.paylabel{font-size:14px;font-weight:500;margin:0 0 5px}
+.pay .seg{display:flex}
+.pay .seg button{flex:1;padding:10px 6px}
+
+/* ---------------------------------------------------------- add stock */
+.scanbox{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.scanbox .field{flex:1 1 260px}
+
+/* ---------------------------------------------------------- medicines & prices */
+.pgrid{display:grid;grid-template-columns:290px minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:920px){ .pgrid{grid-template-columns:1fr} }
+.plist{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+#pq{width:100%;border:0;border-bottom:1px solid var(--line);padding:12px 14px;font-size:16px;background:transparent}
+#pq:focus{outline:none;background:var(--green-wash)}
+.plist ul{list-style:none;margin:0;padding:0;max-height:640px;overflow:auto}
+@media (max-width:920px){ .plist ul{max-height:260px} }
+.pitem{
+  display:grid;grid-template-columns:1fr auto;gap:1px 10px;width:100%;text-align:left;
+  background:transparent;border:0;border-bottom:1px solid var(--line);padding:10px 14px;cursor:pointer;
+}
+.pitem:hover{background:var(--canvas)}
+.pitem[aria-current="true"]{background:var(--green-wash)}
+.pitem .nm{font-weight:600}
+.pitem .sub{grid-column:1}
+.pitem .stk{grid-row:1/3;grid-column:2;align-self:center;font-size:13.5px;color:var(--muted)}
+tr.editrow > td{background:var(--green-wash);padding:14px}
+tr.editing > td{background:var(--green-wash)}
+.pform{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end}
+.pform .wide{grid-column:1/-1}
+@media (max-width:700px){ .pform{grid-template-columns:1fr 1fr} }
+.history{list-style:none;margin:0;padding:0}
+.history li{display:grid;grid-template-columns:120px minmax(0,1fr);gap:2px 14px;padding:10px 16px;border-bottom:1px solid var(--line);font-size:15px}
+.history li:last-child{border-bottom:0}
+.history .when{color:var(--muted);font-size:13.5px}
+.history .when b{display:block;color:var(--ink);font-weight:500}
+.history .why{grid-column:2;font-size:13.5px;color:var(--muted)}
+.kind{display:inline-block;font-size:12px;font-weight:700;padding:1px 6px;border-radius:3px;margin-right:6px;background:var(--green-wash);color:var(--green-deep)}
+.kind.price{background:var(--warn-wash);color:var(--warn)}
+
+/* ---------------------------------------------------------- today */
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+@media (max-width:920px){ .tiles{grid-template-columns:1fr 1fr} }
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.tile .k{font-size:14px;color:var(--muted);font-weight:500}
+.tile .v{font-size:32px;font-weight:700;letter-spacing:-.02em;line-height:1.15;margin-top:2px}
+.tile .s{font-size:14px;color:var(--muted);margin-top:2px}
+.tile.lead{background:var(--green);border-color:var(--green);color:var(--on-green)}
+.tile.lead .k,.tile.lead .s{color:var(--on-green);opacity:.85}
+.todaygrid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:920px){ .todaygrid{grid-template-columns:1fr} }
+.todaygrid .block + .block{margin-top:14px}
+.attnlist{list-style:none;margin:0;padding:0}
+.attnlist li{display:flex;justify-content:space-between;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);font-size:15px}
+.attnlist li:last-child{border-bottom:0}
+.attnlist .val{font-weight:600;white-space:nowrap}
+.close{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.close .field{flex:1 1 160px}
+
+/* ---------------------------------------------------------- sales: day and month */
+.saleshead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.pager{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;margin-bottom:6px}
+.pager strong{font-size:17px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.chartwrap{position:relative;padding:10px 12px 2px;overflow:hidden}
+.chartwrap svg{display:block;max-width:100%}
+.chartwrap text{fill:var(--muted);font-size:12px;font-family:inherit}
+.chartwrap .barlabel{fill:var(--ink);font-weight:600}
+.gridline{stroke:var(--line);stroke-width:1}
+.baseline{stroke:var(--muted);stroke-width:1}
+.bar{fill:var(--green)}
+.bar.on{fill:var(--green-deep)}
+.hit{fill:transparent;cursor:default;outline:none}
+.hit:focus-visible{fill:var(--green-wash);fill-opacity:.35}
+.tip{position:absolute;pointer-events:none;background:var(--surface);color:var(--ink);border:1px solid var(--line);
+  border-radius:var(--r);padding:8px 11px;font-size:13.5px;line-height:1.5;white-space:nowrap;box-shadow:0 8px 20px rgba(8,40,28,.16);z-index:5}
+.tip .val{font-weight:600;float:right;margin-left:14px}
+.tabledetails{border-top:1px solid var(--line)}
+.tabledetails summary{padding:11px 16px;cursor:pointer;color:var(--green-deep);font-weight:600;font-size:14.5px}
+.tabledetails .tablewrap{max-height:320px;overflow:auto}
+.wk{display:grid;grid-template-columns:40px 1fr auto;gap:9px 12px;align-items:center;font-size:14.5px}
+.wktrack{height:14px;background:var(--canvas);border-radius:0 3px 3px 0}
+.wkbar{display:block;height:100%;background:var(--green);border-radius:0 3px 3px 0}
+.wk .val{font-weight:600;min-width:72px;text-align:right}
+tr.strong td{font-weight:700}
+
+.toast{
+  position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);
+  background:var(--green-deep);color:var(--canvas);padding:12px 20px;border-radius:var(--r);
+  font-size:15px;font-weight:500;z-index:60;box-shadow:0 8px 22px rgba(8,40,28,.3);max-width:calc(100% - 32px);
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <span class="shopname">Sri Nachiya Medicals</span>
+    <nav class="tabs" role="tablist" aria-label="Screens">
+      <button class="tab" role="tab" id="tab-bill"     aria-controls="view-bill"     aria-selected="true">Bill</button>
+      <button class="tab" role="tab" id="tab-stock"    aria-controls="view-stock"    aria-selected="false">Add stock</button>
+      <button class="tab" role="tab" id="tab-products" aria-controls="view-products" aria-selected="false">Medicines &amp; prices</button>
+      <button class="tab" role="tab" id="tab-today"    aria-controls="view-today"    aria-selected="false">Sales</button>
+    </nav>
+    <span class="spacer"></span>
+    <span class="status" id="status" role="status"><span class="dot" id="statusDot"></span><span id="statusText">Online · everything saved</span></span>
+  </header>
+
+  <div class="attn" id="attn">
+    <span>Expiring within 30 days: <b id="aExp">₹0</b></span>
+    <span>Can go back to distributors: <b id="aRet">₹0</b></span>
+    <span>Asked for, not in stock today: <b id="aOut">0</b></span>
+    <button class="linkbtn" id="aMore">See today’s sales</button>
+  </div>
+
+  <!-- ====================================================== BILL -->
+  <main class="view" id="view-bill" role="tabpanel" aria-labelledby="tab-bill">
+    <div class="billgrid">
+      <section>
+        <div class="searchwrap">
+          <input id="q" autocomplete="off" spellcheck="false"
+                 placeholder="Type a medicine name, or scan the pack" aria-label="Find a medicine">
+          <p class="help">Type the first few letters, then click the medicine or press Enter.</p>
+          <div class="results" id="results" hidden role="listbox" aria-label="Matching medicines"></div>
+        </div>
+
+        <div class="pick" id="pick" hidden>
+          <div class="what"><span class="muted" style="font-size:14px">How many?</span><b id="pickName"></b><span class="sub" id="pickInfo"></span></div>
+          <div class="field"><label for="qtyNum">Quantity</label><input id="qtyNum" inputmode="numeric" value="1"></div>
+          <div><div class="paylabel" id="unitLabel">Sold as</div><div class="seg" id="unitSeg" role="group" aria-labelledby="unitLabel"></div></div>
+          <button class="btn primary" id="addBtn" style="padding:13px 20px;font-size:16px">Add to bill</button>
+          <button class="btn" id="pickCancel">Cancel</button>
+        </div>
+
+        <div id="panels"></div>
+
+        <div class="block billsheet">
+          <div class="block-head" style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+            <h3>This bill</h3><span class="muted" style="font-size:14px" id="billNo"></span>
+          </div>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Medicine</th><th>Batch · Expiry</th><th class="num">Quantity</th><th class="num">MRP</th><th class="num">Amount</th><th></th></tr></thead>
+              <tbody id="lines"></tbody>
+            </table>
+          </div>
+          <div class="emptybill" id="emptyBill"><strong>No medicines on this bill yet</strong>Search for a medicine above to start.</div>
+        </div>
+      </section>
+
+      <aside class="rail">
+        <div class="totals">
+          <div class="trow"><span>Before GST</span><b id="tTaxable">₹0.00</b></div>
+          <div class="trow"><span>GST</span><b id="tGst">₹0.00</b></div>
+          <div class="trow"><span>Rounded by</span><b id="tRound">₹0.00</b></div>
+          <div class="trow grand"><span>To pay</span><b id="tTotal">₹0</b></div>
+        </div>
+        <div class="pay">
+          <p class="paylabel" id="payLabel">Paid by</p>
+          <div class="seg" id="paySeg" role="group" aria-labelledby="payLabel">
+            <button data-pay="cash" aria-pressed="true">Cash</button>
+            <button data-pay="upi" aria-pressed="false">UPI</button>
+            <button data-pay="card" aria-pressed="false">Card</button>
+            <button data-pay="credit" aria-pressed="false">Credit</button>
+          </div>
+        </div>
+        <button class="btn primary big" id="saveBtn" disabled>Save and print bill</button>
+        <button class="btn" id="newBtn">Clear this bill</button>
+        <div class="tape" id="tape" aria-label="Printed bill preview"></div>
+        <button class="btn small outline" id="netBtn" style="align-self:flex-start">Try it without internet</button>
+      </aside>
+    </div>
+  </main>
+
+  <!-- ====================================================== ADD STOCK -->
+  <main class="view" id="view-stock" role="tabpanel" aria-labelledby="tab-stock" hidden>
+    <h2 class="page">Add stock from a delivery</h2>
+    <p class="lead">Enter each medicine from the distributor’s invoice. If the box has a barcode or QR code, scan it first and the medicine, batch and expiry fill themselves.</p>
+
+    <div class="block">
+      <div class="block-body">
+        <div class="formgrid">
+          <div class="field span2"><label for="sSupplier">Distributor</label>
+            <select id="sSupplier"><option value="">Choose the distributor…</option></select></div>
+          <div class="field span2"><label for="sInvoice">Invoice number <span class="muted">(optional)</span></label>
+            <input id="sInvoice" autocomplete="off"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-head">
+        <h3>Add a medicine</h3>
+        <p>Scan the box, or fill it in from the invoice.</p>
+      </div>
+      <div class="block-body" style="display:grid;gap:14px">
+        <div class="scanbox">
+          <div class="field"><label for="sScan">Scan the box</label>
+            <input id="sScan" autocomplete="off" placeholder="Click here, then scan the barcode or QR code"></div>
+          <button class="btn outline" id="sSample">Try a sample scan</button>
+        </div>
+        <div id="sScanMsg" hidden></div>
+
+        <div class="formgrid">
+          <div class="field span2"><label for="sMed">Medicine</label>
+            <input id="sMed" list="medList" autocomplete="off" placeholder="Start typing the name">
+            <datalist id="medList"></datalist></div>
+          <div class="field"><label for="sBatch">Batch number</label><input id="sBatch" autocomplete="off"></div>
+          <div class="field"><label for="sExpM">Expiry (month / year)</label>
+            <div class="row2"><select id="sExpM" aria-label="Expiry month"></select><select id="sExpY" aria-label="Expiry year"></select></div></div>
+          <div class="field"><label for="sQty" id="sQtyLabel">Strips received</label><input id="sQty" inputmode="numeric"></div>
+          <div class="field"><label for="sFree">Free strips <span class="muted">(scheme)</span></label><input id="sFree" inputmode="numeric" value="0"></div>
+          <div class="field"><label for="sMrp" id="sMrpLabel">MRP per strip (₹)</label><input id="sMrp" inputmode="decimal"><div class="hint">As printed on the pack.</div></div>
+          <div class="field"><label for="sCost" id="sCostLabel">Cost per strip (₹)</label><input id="sCost" inputmode="decimal"><div class="hint">From the invoice, before GST.</div></div>
+        </div>
+        <div id="sMsg" hidden></div>
+        <div><button class="btn primary" id="sAdd">Add to this delivery</button></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-head"><h3>This delivery</h3></div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Medicine</th><th>Batch · Expiry</th><th class="num">Received</th><th class="num">MRP</th><th class="num">Cost</th><th></th></tr></thead>
+          <tbody id="dLines"></tbody>
+        </table>
+      </div>
+      <div class="emptybill" id="dEmpty"><strong>Nothing added yet</strong>Each medicine you add appears here. Check it against the invoice, then save.</div>
+      <div class="block-body" style="border-top:1px solid var(--line)">
+        <button class="btn primary big" id="dSave" disabled>Save delivery and add to stock</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ====================================================== MEDICINES & PRICES -->
+  <main class="view" id="view-products" role="tabpanel" aria-labelledby="tab-products" hidden>
+    <div class="pgrid">
+      <div class="plist">
+        <input id="pq" autocomplete="off" spellcheck="false" placeholder="Find a medicine…" aria-label="Find a medicine">
+        <ul id="plist"></ul>
+      </div>
+      <section id="editor" aria-live="polite"></section>
+    </div>
+  </main>
+
+  <!-- ====================================================== SALES: day and month -->
+  <main class="view" id="view-today" role="tabpanel" aria-labelledby="tab-today" hidden>
+    <div class="saleshead">
+      <h2 class="page">Sales</h2>
+      <div class="seg" role="group" aria-label="Show sales for">
+        <button id="modeDay" aria-pressed="true">Day</button>
+        <button id="modeMonth" aria-pressed="false">Month</button>
+      </div>
+    </div>
+    <div class="pager">
+      <button class="btn small" id="prevBtn">‹ Previous day</button>
+      <strong id="periodLabel" aria-live="polite"></strong>
+      <button class="btn small" id="nextBtn">Next day ›</button>
+      <button class="linkbtn" id="nowBtn">Back to today</button>
+    </div>
+    <p class="lead" id="salesLead"></p>
+    <div class="tiles" id="tiles"></div>
+
+    <!-- ---------- one day -->
+    <div id="dayBody" class="todaygrid">
+      <div>
+        <div class="block" id="attnBlock">
+          <div class="block-head"><h3>Needs your attention</h3></div>
+          <div id="attnDetail"></div>
+        </div>
+        <div class="block">
+          <div class="block-head"><h3>Best sellers</h3></div>
+          <ul class="attnlist" id="topList"></ul>
+        </div>
+      </div>
+      <div>
+        <div class="block">
+          <div class="block-head"><h3>Also on this day</h3></div>
+          <ul class="attnlist" id="dayExtras"></ul>
+        </div>
+        <div class="block" id="closeBlock">
+          <div class="block-head"><h3>Close the day</h3><p>Count the cash in the drawer before you leave.</p></div>
+          <div class="block-body" style="display:grid;gap:12px">
+            <div id="cashExpected" style="font-size:15px"></div>
+            <div class="close">
+              <div class="field"><label for="cashOpen">Cash at opening (₹)</label><input id="cashOpen" inputmode="decimal" value="0"></div>
+              <div class="field"><label for="cashCount">Cash you counted now (₹)</label><input id="cashCount" inputmode="decimal"></div>
+              <button class="btn primary" id="cashCheck">Check</button>
+            </div>
+            <div id="cashMsg" hidden></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- one month -->
+    <div id="monthBody" hidden>
+      <div class="block">
+        <div class="block-head"><h3>Sales each day</h3><p id="chartNote">Point at a day to see its figures.</p></div>
+        <div class="chartwrap" id="chart"></div>
+        <details class="tabledetails">
+          <summary>See every day as a table</summary>
+          <div class="tablewrap"><table>
+            <thead><tr><th>Day</th><th class="num">Bills</th><th class="num">Sales</th><th class="num">You made</th></tr></thead>
+            <tbody id="dayTable"></tbody></table></div>
+        </details>
+      </div>
+      <div class="todaygrid" style="margin-top:14px">
+        <div>
+          <div class="block">
+            <div class="block-head"><h3>Sold the most</h3></div>
+            <ul class="attnlist" id="mTopSales"></ul>
+          </div>
+          <div class="block">
+            <div class="block-head"><h3>Made you the most</h3><p>Not always the same medicines — this list is after GST and cost.</p></div>
+            <ul class="attnlist" id="mTopProfit"></ul>
+          </div>
+        </div>
+        <div>
+          <div class="block">
+            <div class="block-head"><h3>Average sales by weekday</h3></div>
+            <div class="block-body" id="weekdays"></div>
+          </div>
+          <div class="block">
+            <div class="block-head"><h3>Money in and out</h3></div>
+            <ul class="attnlist" id="mMoney"></ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="block" style="margin-top:14px">
+          <div class="block-head"><h3>For your CA</h3><p>GST on sales for this month. Returns are listed as credit notes.</p></div>
+          <div class="tablewrap"><table>
+            <thead><tr><th>GST rate</th><th class="num">Before GST</th><th class="num">CGST</th><th class="num">SGST</th><th class="num">Total</th></tr></thead>
+            <tbody id="gstTable"></tbody></table></div>
+          <ul class="attnlist" id="docList" style="border-top:1px solid var(--line)"></ul>
+        </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>
+/* =================================================================== data
+   Example stock for the demo: several batches per medicine with different
+   expiry dates and MRPs, one near expiry, one out of stock, one Schedule H1. */
+
+const dayMs = 86400000;
+const now0 = new Date();
+const inDays = n => new Date(now0.getTime() + n * dayMs);
+const lastDayOfMonth = (y, m) => new Date(y, m, 0);    // m is 1-12
+
+const SHOP = {
+  address1: 'Saraswathi Complex, Ettimadai Pirivu',
+  address2: 'Ettimadai, Coimbatore, Tamil Nadu 641112',
+  gstin: '_______________',        // from the GST certificate
+  dl:    '_______________',        // Form 20B / 21B drug licence
+};
+
+const SUPPLIERS = [
+  { id:'s1', name:'Sakthi Pharma Distributors', returnMonths:3 },
+  { id:'s2', name:'Kovai Medical Agencies',     returnMonths:6 },
+  { id:'s3', name:'Annai Drug House',           returnMonths:3 },
+];
+
+const PRODUCTS = [
+  { id:'p1', name:'Dolo 650', generic:'Paracetamol 650 mg', comp:'paracetamol|650', mfr:'Micro Labs',
+    base:'tablet', unitsPerStrip:15, stripsPerBox:10, gst:5, sched:'OTC', rack:'A-1', gtin:'08901234567890',
+    batches:[{ no:'DL2291', exp:inDays(24),  mrp:33.10, ptr:25.40, strips:45,  sup:'s1' },
+             { no:'DL3310', exp:inDays(410), mrp:33.10, ptr:25.40, strips:300, sup:'s1' }] },
+  { id:'p2', name:'Augmentin 625 Duo', generic:'Amoxicillin + Clavulanic acid', comp:'amoxiclav|625', mfr:'GSK',
+    base:'tablet', unitsPerStrip:10, stripsPerBox:5, gst:5, sched:'H1', rack:'B-3',
+    batches:[{ no:'AG7712', exp:inDays(300), mrp:223.50, ptr:171.20, strips:60, sup:'s2' }] },
+  { id:'p3', name:'Pan 40', generic:'Pantoprazole 40 mg', comp:'pantoprazole|40', mfr:'Alkem',
+    base:'tablet', unitsPerStrip:15, stripsPerBox:10, gst:5, sched:'H', rack:'A-4',
+    batches:[{ no:'PN1180', exp:inDays(118), mrp:148.00, ptr:112.00, strips:120, sup:'s1' },
+             { no:'PN2240', exp:inDays(520), mrp:151.00, ptr:115.60, strips:150, sup:'s1' }] },
+  { id:'p4', name:'Telma 40', generic:'Telmisartan 40 mg', comp:'telmisartan|40', mfr:'Glenmark',
+    base:'tablet', unitsPerStrip:15, stripsPerBox:10, gst:5, sched:'H', rack:'C-2',
+    batches:[{ no:'TM4402', exp:inDays(200), mrp:139.50, ptr:104.30, strips:90, sup:'s2' }] },
+  { id:'p5', name:'Telsartan 40', generic:'Telmisartan 40 mg', comp:'telmisartan|40', mfr:'Dr. Reddy’s',
+    base:'tablet', unitsPerStrip:15, stripsPerBox:10, gst:5, sched:'H', rack:'C-2',
+    batches:[{ no:'TS9021', exp:inDays(365), mrp:132.00, ptr:98.70, strips:75, sup:'s2' }] },
+  { id:'p6', name:'Zerodol SP', generic:'Aceclofenac + Paracetamol + Serratiopeptidase', comp:'zerodol-sp', mfr:'Ipca',
+    base:'tablet', unitsPerStrip:10, stripsPerBox:10, gst:5, sched:'H', rack:'A-2',
+    batches:[{ no:'ZD5510', exp:inDays(19),  mrp:118.00, ptr:88.20, strips:14,  sup:'s1' },
+             { no:'ZD6620', exp:inDays(430), mrp:121.00, ptr:90.40, strips:200, sup:'s1' }] },
+  { id:'p7', name:'Glycomet GP 1', generic:'Metformin + Glimepiride', comp:'metformin-glimepiride|500-1', mfr:'USV',
+    base:'tablet', unitsPerStrip:15, stripsPerBox:10, gst:5, sched:'H', rack:'C-1',
+    batches:[{ no:'GM3341', exp:inDays(205), mrp:146.50, ptr:110.90, strips:180, sup:'s2' }] },
+  { id:'p8', name:'Ascoril LS Syrup', generic:'Levosalbutamol + Ambroxol + Guaiphenesin', comp:'ascoril-ls', mfr:'Glenmark',
+    base:'bottle', unitsPerStrip:1, stripsPerBox:1, gst:5, sched:'H', rack:'D-1',
+    batches:[{ no:'AS2210', exp:inDays(125), mrp:128.00, ptr:96.50, strips:22, sup:'s3' }] },
+  { id:'p9', name:'Shelcal 500', generic:'Calcium + Vitamin D3', comp:'calcium-d3|500', mfr:'Torrent',
+    base:'tablet', unitsPerStrip:15, stripsPerBox:10, gst:12, sched:'OTC', rack:'B-1',
+    batches:[{ no:'SH8801', exp:inDays(280), mrp:135.00, ptr:101.20, strips:105, sup:'s2' }] },
+  { id:'p10', name:'Becosules', generic:'Vitamin B-complex + Vitamin C', comp:'bcomplex-c', mfr:'Pfizer',
+    base:'capsule', unitsPerStrip:20, stripsPerBox:5, gst:18, sched:'OTC', rack:'B-2',
+    batches:[{ no:'BC1120', exp:inDays(340), mrp:48.00, ptr:35.90, strips:160, sup:'s3' }] },
+  { id:'p11', name:'Azithral 500', generic:'Azithromycin 500 mg', comp:'azithromycin|500', mfr:'Alembic',
+    base:'tablet', unitsPerStrip:5, stripsPerBox:10, gst:5, sched:'H1', rack:'B-4', batches:[] },
+  { id:'p12', name:'Crocin Advance', generic:'Paracetamol 500 mg', comp:'paracetamol|500', mfr:'GSK',
+    base:'tablet', unitsPerStrip:15, stripsPerBox:10, gst:5, sched:'OTC', rack:'A-1',
+    batches:[{ no:'CR4410', exp:inDays(388), mrp:30.28, ptr:22.90, strips:220, sup:'s1' }] },
+];
+
+/* Quantity always lives on the batch, counted in the smallest unit sold
+   (tablets, capsules, bottles). */
+const BATCHES = [];
+PRODUCTS.forEach(p => {
+  p.hsn = '3004'; p.reorderStrips = 20; p.cold = false; p.history = [];
+  p.batches.forEach((b, i) => BATCHES.push({
+    id:`${p.id}-b${i}`, productId:p.id, batchNo:b.no, expiry:b.exp,
+    mrp:b.mrp, ptr:b.ptr, qty:b.strips * p.unitsPerStrip, sup:b.sup }));
+  delete p.batches;
+});
+productById('p3').history.push(
+  { at:inDays(-3), kind:'price', example:true, change:'Batch PN1180: cost ₹114.00 → ₹112.00', why:'Mistake when adding stock' },
+  { at:inDays(-9), kind:'details', example:true, change:'Rack A-2 → A-4', why:'' });
+
+function productById(id) { return PRODUCTS.find(p => p.id === id); }
+const batchesFor = id => BATCHES.filter(b => b.productId === id);
+const stockOf    = id => batchesFor(id).reduce((s, b) => s + b.qty, 0);
+const supplierById = id => SUPPLIERS.find(s => s.id === id);
+
+/* =================================================================== rules
+   The same rules as lib/pharmacy.ts. Money is handled in paise so it never
+   drifts; quantity in whole tablets. */
+
+const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const daysUntil  = d => Math.round((startOfDay(d) - startOfDay(new Date())) / dayMs);
+const mmYYYY = d => String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+const plural = (w, n) => n === 1 ? w : w + 's';
+const cap = s => s[0].toUpperCase() + s.slice(1);
+const packWord = p => p.unitsPerStrip > 1 ? 'strip' : p.base;
+
+function formatQuantity(base, p) {
+  if (p.unitsPerStrip <= 1) return `${base} ${plural(p.base, base)}`;
+  const strips = Math.floor(base / p.unitsPerStrip), loose = base % p.unitsPerStrip;
+  const parts = [];
+  if (strips) parts.push(`${strips} ${plural('strip', strips)}`);
+  if (loose)  parts.push(`${loose} ${plural(p.base, loose)}`);
+  return parts.join(' + ') || '0';
+}
+
+/* Sell the batch that expires soonest first. Expired stock is never sold. */
+function allocateFefo(productId, qtyBase) {
+  const sellable = batchesFor(productId).filter(b => b.qty > 0 && daysUntil(b.expiry) >= 0)
+                                        .sort((a, b) => a.expiry - b.expiry);
+  const out = []; let left = qtyBase;
+  for (const b of sellable) { if (left <= 0) break; const take = Math.min(left, b.qty); out.push({ b, take }); left -= take; }
+  if (left > 0) { const e = new Error('short'); e.shortBy = left; throw e; }
+  return out;
+}
+
+/* MRP already includes GST, so GST is worked out of it, never added on top. */
+function lineMoney(mrp, gstRate, unitsPerStrip, qty) {
+  const unitPaise = Math.round(mrp * 100) / Math.max(unitsPerStrip, 1);
+  const gross = Math.round(unitPaise * qty);
+  const taxable = Math.round(gross * 100 / (100 + gstRate));
+  return { gross, taxable, gst: gross - taxable };
+}
+/* Profit leaves GST out on both sides: the GST collected is the government's,
+   and cost from the invoice is before GST. */
+const linePaiseCost = (ptr, unitsPerStrip, qty) => Math.round(qty / Math.max(unitsPerStrip, 1) * ptr * 100);
+const profitPerPack = (mrp, gst, cost) => mrp / (1 + gst / 100) - cost;
+const profitPct = (mrp, gst, cost) => { const t = mrp / (1 + gst / 100); return t > 0 ? (t - cost) / t * 100 : 0; };
+
+const money  = paise => (paise / 100).toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 });
+const rs     = paise => '₹' + money(paise);
+const rsR    = paise => '₹' + Math.round(paise / 100).toLocaleString('en-IN');
+const rupee  = n => rs(Math.round(n * 100));
+const toNum  = v => { const s = String(v).trim(); return s === '' ? NaN : Math.round(Number(s) * 100) / 100; };
+
+/* =================================================================== state */
+
+const $ = id => document.getElementById(id);
+let view = 'bill';
+let online = true;
+let waiting = 0;                 // bills saved on this computer, not yet online
+let billSeq = 1;
+let bill = [];                   // { p, b, qty, mrp, gst, ptr }
+let payMode = 'cash';
+let rx = { doctor:'', patient:'', address:'' };
+let picked = null;               // product chosen, waiting for a quantity
+let pickUnit = 'strip';
+let matches = [], highlight = 0;
+const savedBills = [];           // today's bills
+const stockouts = [];            // { term, at, example }
+
+const billNoStr = () => `SNM-${String(billSeq).padStart(6, '0')}`;
+
+/* =================================================================== bill: search */
+
+function search(term) {
+  const t = term.trim().toLowerCase();
+  if (t.length < 2) return [];
+  const score = p => {
+    const n = p.name.toLowerCase(), g = p.generic.toLowerCase();
+    return n.startsWith(t) ? 0 : n.includes(t) ? 1 : g.startsWith(t) ? 2 : g.includes(t) ? 3 : 99;
+  };
+  return PRODUCTS.map(p => ({ p, s:score(p) })).filter(x => x.s < 99)
+    .sort((a, b) => a.s - b.s || a.p.name.localeCompare(b.p.name)).slice(0, 7).map(x => x.p);
+}
+
+function renderResults() {
+  const box = $('results'), term = $('q').value.trim();
+  if (term.length < 2) { box.hidden = true; return; }
+  if (!matches.length) {
+    box.innerHTML = `<div class="res empty"><b>No medicine called “${esc(term)}” in your list.</b>
+      <div class="sub" style="margin:4px 0 10px">If a customer asked for it, note it — it shows up in your reorder list.</div>
+      <button class="btn small" id="logMiss">Note that a customer asked for it</button></div>`;
+    box.hidden = false;
+    $('logMiss').onclick = () => { logStockout(term); resetSearch(); };
+    return;
+  }
+  box.innerHTML = matches.map((p, i) => {
+    const stock = stockOf(p.id);
+    const next = batchesFor(p.id).filter(b => b.qty > 0 && daysUntil(b.expiry) >= 0).sort((a, b) => a.expiry - b.expiry)[0];
+    let tags = '';
+    if (p.sched === 'H1') tags += '<span class="tag h1">Needs prescription record</span>';
+    if (!stock) tags += '<span class="tag out">Out of stock</span>';
+    else if (next && daysUntil(next.expiry) <= 30) tags += `<span class="tag near">Expires ${mmYYYY(next.expiry)}</span>`;
+    return `<div class="res" role="option" data-i="${i}" aria-selected="${i === highlight}">
+      <div class="nm">${esc(p.name)}${tags}</div>
+      <div class="sub">${esc(p.generic)} · rack ${esc(p.rack)}</div>
+      <div class="stk"><b>${stock ? esc(formatQuantity(stock, p)) : '—'}</b>${next ? rupee(next.mrp) + ' / ' + packWord(p) : ''}</div>
+    </div>`;
+  }).join('');
+  box.hidden = false;
+  box.querySelectorAll('.res').forEach(el => el.onclick = () => choose(Number(el.dataset.i)));
+}
+
+function choose(i) {
+  const p = matches[i]; if (!p) return;
+  $('results').hidden = true;
+  if (!stockOf(p.id)) { offerSubstitutes(p); return; }
+  picked = p;
+  pickUnit = p.unitsPerStrip > 1 ? 'strip' : 'base';
+  $('pickName').textContent = p.name;
+  $('pickInfo').textContent = `${formatQuantity(stockOf(p.id), p)} in stock · ${rupee(nextBatch(p).mrp)} per ${packWord(p)}`;
+  $('qtyNum').value = '1';
+  renderUnitSeg();
+  $('pick').hidden = false;
+  $('qtyNum').focus(); $('qtyNum').select();
+}
+const nextBatch = p => batchesFor(p.id).filter(b => b.qty > 0 && daysUntil(b.expiry) >= 0).sort((a, b) => a.expiry - b.expiry)[0];
+
+function renderUnitSeg() {
+  const p = picked;
+  const units = p.unitsPerStrip > 1
+    ? [['base', cap(plural(p.base, 2))], ['strip', 'Strips'], ['box', 'Boxes']]
+    : [['base', cap(plural(p.base, 2))]];
+  $('unitSeg').innerHTML = units.map(([k, label]) =>
+    `<button data-unit="${k}" aria-pressed="${k === pickUnit}">${label}</button>`).join('');
+  $('unitSeg').querySelectorAll('button').forEach(b => b.onclick = () => { pickUnit = b.dataset.unit; renderUnitSeg(); $('qtyNum').focus(); });
+}
+
+function offerSubstitutes(p) {
+  logStockout(p.name);
+  const alts = PRODUCTS.filter(x => x.comp === p.comp && x.id !== p.id && stockOf(x.id) > 0);
+  showPanel(`<div class="panel sub"><h3>${esc(p.name)} is out of stock</h3>
+    <p>${alts.length ? 'These have the same medicine and strength. You decide whether to offer one.' : 'Nothing with the same medicine and strength is in stock. It has been added to your reorder list.'}</p>
+    ${alts.map(a => `<div class="subrow"><span><b>${esc(a.name)}</b> · ${esc(a.mfr)} · ${rupee(nextBatch(a).mrp)} per ${packWord(a)}</span>
+      <button class="btn small outline" data-alt="${a.id}">Use this</button></div>`).join('')}</div>`);
+  document.querySelectorAll('[data-alt]').forEach(b => b.onclick = () => {
+    matches = [productById(b.dataset.alt)]; clearPanels(); choose(0);
+  });
+}
+
+function logStockout(term) {
+  stockouts.push({ term, at:new Date() });
+  renderAttn();
+  toast(`Noted: a customer asked for ${term}`);
+}
+
+/* =================================================================== bill: lines */
+
+function addLine() {
+  const p = picked; if (!p) return;
+  const n = Number($('qtyNum').value);
+  if (!Number.isFinite(n) || n <= 0) { toast('Enter how many, for example 1 or 2'); $('qtyNum').focus(); return; }
+  const qty = Math.round(pickUnit === 'strip' ? n * p.unitsPerStrip
+                       : pickUnit === 'box'   ? n * p.stripsPerBox * p.unitsPerStrip : n);
+  let alloc;
+  try { alloc = allocateFefo(p.id, qty); }
+  catch (e) { toast(`Only ${formatQuantity(stockOf(p.id), p)} in stock`); return; }
+
+  for (const { b, take } of alloc) {
+    // The line keeps the price it was sold at; later price changes affect new lines only.
+    const same = bill.find(l => l.b.id === b.id && l.mrp === b.mrp);
+    if (same) same.qty += take;
+    else bill.push({ p, b, qty:take, mrp:b.mrp, gst:p.gst, ptr:b.ptr });
+    b.qty -= take;
+  }
+  const wasH1 = p.sched === 'H1';
+  resetSearch(); renderBill();
+  if (wasH1) requireRx();
+}
+
+function removeLine(i) {
+  const l = bill[i]; l.b.qty += l.qty; bill.splice(i, 1);
+  renderBill();
+  if (!needsRx()) clearPanels();
+}
+
+function resetSearch() {
+  picked = null; matches = []; highlight = 0;
+  $('q').value = ''; $('pick').hidden = true; $('results').hidden = true;
+  if (view === 'bill') $('q').focus();
+}
+
+const needsRx = () => bill.some(l => l.p.sched === 'H1');
+const rxDone  = () => rx.doctor.trim() && rx.patient.trim() && rx.address.trim();
+
+function requireRx() {
+  showPanel(`<div class="panel"><h3>Prescription record needed (Schedule H1)</h3>
+    <p>The law asks you to write down the doctor and the patient for this medicine. Fill these three and the bill can be printed.</p>
+    <div class="formgrid">
+      <div class="field span2"><label for="rxDoc">Doctor’s name</label><input id="rxDoc" value="${esc(rx.doctor)}"></div>
+      <div class="field span2"><label for="rxPat">Patient’s name</label><input id="rxPat" value="${esc(rx.patient)}"></div>
+      <div class="field span4"><label for="rxAdr">Patient’s address</label><input id="rxAdr" value="${esc(rx.address)}"></div>
+    </div></div>`);
+  ['rxDoc', 'rxPat', 'rxAdr'].forEach(id => $(id).oninput = () => {
+    rx = { doctor:$('rxDoc').value, patient:$('rxPat').value, address:$('rxAdr').value }; renderBill();
+  });
+  $('rxDoc').focus();
+}
+const showPanel = html => { $('panels').innerHTML = html; };
+const clearPanels = () => { $('panels').innerHTML = ''; };
+
+function billTotals(lines) {
+  let gross = 0, taxable = 0, gst = 0;
+  for (const l of lines) { const m = lineMoney(l.mrp, l.gst, l.p.unitsPerStrip, l.qty); gross += m.gross; taxable += m.taxable; gst += m.gst; }
+  const payable = Math.round(gross / 100) * 100;
+  return { gross, taxable, gst, payable, round: payable - gross };
+}
+
+function renderBill() {
+  $('billNo').textContent = `Bill ${billNoStr()}`;
+  $('emptyBill').hidden = bill.length > 0;
+  $('lines').innerHTML = bill.map((l, i) => {
+    const m = lineMoney(l.mrp, l.gst, l.p.unitsPerStrip, l.qty);
+    const d = daysUntil(l.b.expiry);
+    return `<tr class="${d <= 30 ? 'warn' : ''}">
+      <td><div class="strong">${esc(l.p.name)}</div><div class="sub">${esc(l.p.generic)}</div></td>
+      <td>${esc(l.b.batchNo)}<div class="sub">${mmYYYY(l.b.expiry)}${d <= 30 ? ` · ${d} days left` : ''}</div></td>
+      <td class="num">${esc(formatQuantity(l.qty, l.p))}</td>
+      <td class="num">${rupee(l.mrp)}<div class="sub">per ${packWord(l.p)}</div></td>
+      <td class="num strong">${rs(m.gross)}</td>
+      <td class="num"><button class="x" data-del="${i}" aria-label="Remove ${esc(l.p.name)}">×</button></td>
+    </tr>`;
+  }).join('');
+  $('lines').querySelectorAll('[data-del]').forEach(b => b.onclick = () => removeLine(Number(b.dataset.del)));
+
+  const t = billTotals(bill);
+  $('tTaxable').textContent = rs(t.taxable);
+  $('tGst').textContent = rs(t.gst);
+  $('tRound').textContent = rs(t.round);
+  $('tTotal').textContent = rsR(t.payable);
+
+  const blocked = !bill.length || (needsRx() && !rxDone());
+  $('saveBtn').disabled = blocked;
+  $('saveBtn').textContent = needsRx() && !rxDone() ? 'Fill in the prescription record first' : 'Save and print bill';
+  renderTape(t);
+}
+
+function renderTape(t) {
+  const W = 40, pad = (s, n) => String(s).padEnd(n).slice(0, n), rpad = (s, n) => String(s).padStart(n).slice(-n);
+  // GSTIN and drug licence numbers are entered once at first-time setup, from
+  // the shop's certificates. Until then the bill shows blanks, never a made-up number.
+  let o = `<div class="c big">SRI NACHIYA MEDICALS</div>
+    <div class="c">${esc(SHOP.address1)}</div><div class="c">${esc(SHOP.address2)}</div>
+    <div class="c">GSTIN ${esc(SHOP.gstin)}</div><div class="c">DL No. ${esc(SHOP.dl)}</div><div>${'-'.repeat(W)}</div>
+    <div>${pad(billNoStr(), 22)}${rpad(new Date().toLocaleDateString('en-IN'), 18)}</div>`;
+  if (needsRx() && rx.doctor) o += `<div>Dr: ${esc(rx.doctor)}  Pt: ${esc(rx.patient)}</div>`;
+  o += `<div>${'-'.repeat(W)}</div>`;
+  if (!bill.length) o += `<div class="c" style="padding:14px 0;opacity:.55">— no medicines yet —</div>`;
+  for (const l of bill) {
+    const m = lineMoney(l.mrp, l.gst, l.p.unitsPerStrip, l.qty);
+    o += `<div>${esc(pad(l.p.name, W))}</div><div>  ${esc(pad(l.b.batchNo + ' ' + mmYYYY(l.b.expiry), 18))}${esc(rpad(formatQuantity(l.qty, l.p), 13))}${rpad(money(m.gross), 7)}</div>`;
+  }
+  if (bill.length) o += `<div>${'-'.repeat(W)}</div><div>${pad('Before GST', 28)}${rpad(money(t.taxable), 12)}</div>
+    <div>${pad('CGST + SGST', 28)}${rpad(money(t.gst), 12)}</div><div class="big">${pad('TOTAL', 28)}${rpad(money(t.payable), 12)}</div>`;
+  o += `<div>${'-'.repeat(W)}</div><div class="c">Thank you. Keep this bill for returns.</div>`;
+  $('tape').innerHTML = o;
+}
+
+function saveBill() {
+  if ($('saveBtn').disabled) return;
+  const t = billTotals(bill);
+  savedBills.push({ no:billNoStr(), at:new Date(), day:dkey(new Date()), pay:payMode, payable:t.payable,
+    lines:bill.map(l => ({ p:l.p, qty:l.qty, mrp:l.mrp, gst:l.gst, ptr:l.ptr })) });
+  if (online) toast(`Bill ${billNoStr()} saved and printed · ${rsR(t.payable)}`);
+  else { waiting++; toast(`Bill ${billNoStr()} saved on this computer and printed. It goes online when the internet is back.`); }
+  billSeq++; bill = []; rx = { doctor:'', patient:'', address:'' }; setPay('cash');
+  clearPanels(); resetSearch(); renderBill(); renderStatus(); renderAttn();
+}
+
+function clearBill() {
+  bill.forEach(l => l.b.qty += l.qty);
+  bill = []; rx = { doctor:'', patient:'', address:'' };
+  clearPanels(); resetSearch(); renderBill();
+}
+
+function setPay(m) {
+  payMode = m;
+  $('paySeg').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.pay === m)));
+}
+
+function renderStatus() {
+  $('statusDot').className = 'dot' + (online ? '' : ' off');
+  $('statusText').textContent = online
+    ? 'Online · everything saved'
+    : `No internet · ${waiting} ${plural('bill', waiting)} saved on this computer`;
+  $('netBtn').textContent = online ? 'Try it without internet' : 'Turn the internet back on';
+}
+
+/* =================================================================== add stock */
+
+let delivery = [];               // lines waiting to be saved
+let scannedCode = null;          // a code to remember against the chosen medicine
+
+/* Reads the GS1 code on a pharma box: product code, expiry (YYMMDD) and batch.
+   The full parser, which also copes with scanners that drop the separators,
+   is lib/gs1.ts. */
+function parseGs1(raw) {
+  const s = raw.replace(/^\]\w\d/, '').replace(/^\u001d/, '');
+  const fixed = { '01':14, '11':6, '17':6 }, out = {};
+  let i = 0;
+  while (i < s.length) {
+    const ai = s.slice(i, i + 2); i += 2;
+    if (fixed[ai]) { out[ai] = s.slice(i, i + fixed[ai]); i += fixed[ai]; if (s[i] === '\u001d') i++; }
+    else if (ai === '10' || ai === '21') { const end = s.indexOf('\u001d', i); out[ai] = s.slice(i, end < 0 ? s.length : end); i = end < 0 ? s.length : end + 1; }
+    else break;
+  }
+  return out;
+}
+
+function handleScan(raw) {
+  const code = raw.trim(); if (!code) return;
+  const box = $('sScanMsg'); box.hidden = false;
+  let gtin = null, batch = null, exp = null;
+  if (/^\d{13}$/.test(code)) gtin = '0' + code;
+  else if (/^\d{14}$/.test(code)) gtin = code;
+  else { const g = parseGs1(code); gtin = g['01'] || null; batch = g['10'] || null; exp = g['17'] || null; }
+
+  const p = gtin && PRODUCTS.find(x => x.gtin === gtin);
+  if (p) {
+    $('sMed').value = p.name; onMedChosen();
+    if (batch) $('sBatch').value = batch;
+    if (exp) { $('sExpY').value = String(2000 + Number(exp.slice(0, 2))); $('sExpM').value = exp.slice(2, 4); }
+    const filled = [p.name, batch && `batch ${batch}`, exp && `expiry ${exp.slice(2, 4)}/20${exp.slice(0, 2)}`].filter(Boolean).join(', ');
+    box.className = 'msg ok';
+    box.textContent = `Filled from the box: ${filled}. Now enter how many arrived and check the price.`;
+    $('sQty').focus();
+  } else {
+    scannedCode = gtin || code;
+    box.className = 'msg warn';
+    box.textContent = 'This code isn’t linked to a medicine yet. Choose the medicine below — next time this code will fill it in.';
+    $('sMed').focus();
+  }
+  $('sScan').value = '';
+}
+
+function onMedChosen() {
+  const p = PRODUCTS.find(x => x.name.toLowerCase() === $('sMed').value.trim().toLowerCase());
+  const w = p ? packWord(p) : 'strip';
+  $('sQtyLabel').textContent = `${cap(plural(w, 2))} received`;
+  $('sMrpLabel').textContent = `MRP per ${w} (₹)`;
+  $('sCostLabel').textContent = `Cost per ${w} (₹)`;
+  if (!p) return;
+  // Fill in last time's price as a starting point; the owner checks it against the invoice.
+  const last = batchesFor(p.id).sort((a, b) => b.expiry - a.expiry)[0];
+  if (last && !$('sMrp').value) $('sMrp').value = last.mrp.toFixed(2);
+  if (last && !$('sCost').value) $('sCost').value = last.ptr.toFixed(2);
+}
+
+function addDeliveryLine() {
+  const say = (cls, text) => { $('sMsg').hidden = false; $('sMsg').className = 'msg ' + cls; $('sMsg').textContent = text; };
+  const p = PRODUCTS.find(x => x.name.toLowerCase() === $('sMed').value.trim().toLowerCase());
+  const batch = $('sBatch').value.trim().toUpperCase();
+  const y = Number($('sExpY').value), m = Number($('sExpM').value);
+  const qty = Number($('sQty').value), free = Number($('sFree').value || 0);
+  const mrp = toNum($('sMrp').value), cost = toNum($('sCost').value);
+
+  if (!p) return say('bad', 'Choose the medicine from the list. Start typing its name and pick it.');
+  if (!batch) return say('bad', 'Enter the batch number printed on the box.');
+  if (!y || !m) return say('bad', 'Choose the expiry month and year from the box.');
+  const expiry = lastDayOfMonth(y, m);
+  if (daysUntil(expiry) < 0) return say('bad', 'This stock has already expired. Don’t accept it — send it back with the delivery.');
+  if (!Number.isInteger(qty) || qty <= 0) return say('bad', `Enter how many ${plural(packWord(p), 2)} arrived.`);
+  if (!Number.isInteger(free) || free < 0) return say('bad', 'Free strips must be 0 or more.');
+  if (!(mrp > 0)) return say('bad', 'Enter the MRP printed on the pack.');
+  if (!(cost > 0)) return say('bad', 'Enter the cost from the invoice.');
+  if (cost > mrp) return say('bad', `Cost ${rupee(cost)} is more than the MRP ${rupee(mrp)}. Check the invoice — you would lose money on every sale.`);
+
+  // Free strips lower what each strip really cost.
+  const realCost = Math.round(cost * qty / (qty + free) * 100) / 100;
+  delivery.push({ p, batch, expiry, qty, free, mrp, cost, realCost, code:scannedCode });
+  scannedCode = null;
+
+  const notes = [`Added ${p.name}.`];
+  const months = Math.round(daysUntil(expiry) / 30);
+  if (months < 6) notes.push(`Short expiry: only about ${months} ${plural('month', months)} left. Keep it only if the distributor will take it back.`);
+  const last = batchesFor(p.id).sort((a, b) => b.expiry - a.expiry)[0];
+  if (last && last.mrp !== mrp) notes.push(`MRP was ${rupee(last.mrp)} last time and is ${rupee(mrp)} now. That’s fine if the pack says so.`);
+  if (free) notes.push(`With ${free} free, each ${packWord(p)} really cost ${rupee(realCost)}.`);
+  say(notes.length > 1 ? 'warn' : 'ok', notes.join(' '));
+
+  ['sMed', 'sBatch', 'sQty', 'sMrp', 'sCost'].forEach(id => $(id).value = '');
+  $('sFree').value = '0';
+  renderDelivery();
+  $('sScan').focus();
+}
+
+function renderDelivery() {
+  $('dEmpty').hidden = delivery.length > 0;
+  $('dLines').innerHTML = delivery.map((d, i) => `<tr>
+    <td><div class="strong">${esc(d.p.name)}</div><div class="sub">${esc(d.p.generic)}</div></td>
+    <td>${esc(d.batch)}<div class="sub">${mmYYYY(d.expiry)}</div></td>
+    <td class="num">${d.qty} ${plural(packWord(d.p), d.qty)}${d.free ? `<div class="sub">+ ${d.free} free</div>` : ''}</td>
+    <td class="num">${rupee(d.mrp)}</td>
+    <td class="num">${rupee(d.cost)}</td>
+    <td class="num"><button class="x" data-rm="${i}" aria-label="Remove ${esc(d.p.name)}">×</button></td>
+  </tr>`).join('');
+  $('dLines').querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { delivery.splice(Number(b.dataset.rm), 1); renderDelivery(); });
+  $('dSave').disabled = !delivery.length;
+  $('dSave').textContent = delivery.length
+    ? `Save delivery and add ${delivery.length} ${plural('medicine', delivery.length)} to stock` : 'Save delivery and add to stock';
+}
+
+function saveDelivery() {
+  const sup = $('sSupplier').value;
+  if (!sup) { toast('Choose the distributor at the top first'); $('sSupplier').focus(); return; }
+  let packs = 0;
+  for (const d of delivery) {
+    const units = (d.qty + d.free) * d.p.unitsPerStrip;
+    const same = BATCHES.find(b => b.productId === d.p.id && b.batchNo === d.batch && +b.expiry === +d.expiry);
+    if (same) same.qty += units;
+    else BATCHES.push({ id:`${d.p.id}-n${BATCHES.length}`, productId:d.p.id, batchNo:d.batch, expiry:d.expiry,
+                        mrp:d.mrp, ptr:d.realCost, qty:units, sup });
+    if (d.code && !d.p.gtin) d.p.gtin = d.code;      // remembered for next time
+    packs += d.qty + d.free;
+  }
+  toast(`Stock added: ${delivery.length} ${plural('medicine', delivery.length)}, ${packs} packs in total`);
+  delivery = []; $('sInvoice').value = ''; $('sMsg').hidden = true; $('sScanMsg').hidden = true;
+  renderDelivery(); renderAttn();
+}
+
+/* =================================================================== medicines & prices */
+
+let editingProductId = 'p3', editingBatchId = null;
+const REASONS = ['Mistake when adding stock', 'Company changed the MRP', 'Distributor changed the price'];
+
+function whenText(d) {
+  const days = Math.round((startOfDay(new Date()) - startOfDay(d)) / dayMs);
+  const t = d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+  return days <= 0 ? ['Today', t] : days === 1 ? ['Yesterday', t] : [`${days} days ago`, d.toLocaleDateString('en-IN', { day:'numeric', month:'short' })];
+}
+
+function renderPList() {
+  const t = $('pq').value.trim().toLowerCase();
+  const list = PRODUCTS.filter(p => !t || [p.name, p.generic, p.mfr].some(x => x.toLowerCase().includes(t)));
+  $('plist').innerHTML = list.map(p => `<li><button class="pitem" data-pid="${p.id}" aria-current="${p.id === editingProductId}">
+      <span class="nm">${esc(p.name)}</span><span class="sub">${esc(p.generic)}</span>
+      <span class="stk">${stockOf(p.id) ? esc(formatQuantity(stockOf(p.id), p)) : 'Out of stock'}</span></button></li>`).join('')
+    || `<li class="muted" style="padding:12px 14px">Nothing matches “${esc(t)}”.</li>`;
+  $('plist').querySelectorAll('[data-pid]').forEach(el => el.onclick = () => {
+    editingProductId = el.dataset.pid; editingBatchId = null; renderPList(); renderEditor();
+  });
+}
+
+function renderEditor() {
+  const p = productById(editingProductId);
+  const bs = batchesFor(p.id).sort((a, b) => a.expiry - b.expiry);
+  const stock = stockOf(p.id), w = packWord(p);
+
+  const rows = bs.map(b => {
+    const editing = b.id === editingBatchId;
+    let h = `<tr class="${editing ? 'editing' : ''}">
+      <td class="strong">${esc(b.batchNo)}</td><td>${mmYYYY(b.expiry)}</td>
+      <td class="num">${b.qty ? esc(formatQuantity(b.qty, p)) : '—'}</td>
+      <td class="num">${rupee(b.mrp)}</td><td class="num">${rupee(b.ptr)}</td>
+      <td class="num">${rupee(profitPerPack(b.mrp, p.gst, b.ptr))}<div class="sub">${profitPct(b.mrp, p.gst, b.ptr).toFixed(1)}%</div></td>
+      <td class="num">${editing ? '' : `<button class="btn small outline" data-edit="${b.id}">Change price</button>`}</td></tr>`;
+    if (editing) h += `<tr class="editrow"><td colspan="7"><div class="pform">
+        <div class="field"><label for="nMrp">New MRP per ${w} (₹)</label><input id="nMrp" inputmode="decimal" value="${b.mrp.toFixed(2)}"></div>
+        <div class="field"><label for="nCost">New cost per ${w} (₹)</label><input id="nCost" inputmode="decimal" value="${b.ptr.toFixed(2)}"></div>
+        <div class="field"><label for="nWhy">Why?</label><select id="nWhy"><option value="">Choose a reason…</option>
+          ${REASONS.map(r => `<option>${r}</option>`).join('')}</select></div>
+        <div id="pcheck" class="msg wide" role="status"></div>
+        <div class="wide row2" style="justify-content:flex-end"><button class="btn" id="pCancel">Cancel</button><button class="btn primary" id="pSave">Save new price</button></div>
+      </div></td></tr>`;
+    return h;
+  }).join('') || `<tr><td colspan="7" class="muted">No stock on hand. Your next delivery sets the price.</td></tr>`;
+
+  const locked = stock > 0;
+  const opt = (vals, cur, f = v => v) => vals.map(v => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${f(v)}</option>`).join('');
+  const hist = [...p.history].sort((a, b) => b.at - a.at);
+
+  $('editor').innerHTML = `
+    <h2 class="page">${esc(p.name)}</h2>
+    <p class="lead" style="margin-bottom:14px">${esc(p.generic)} · ${esc(p.mfr)} · ${stock ? esc(formatQuantity(stock, p)) + ' in stock' : 'out of stock'}</p>
+
+    <div class="block">
+      <div class="block-head"><h3>Prices</h3>
+        <p>Each delivery keeps its own price. When the distributor charges more next time, just enter the new price on the delivery — nothing to change here. Use this only to fix a mistake, or when the company changes the MRP on stock you already have. To sell cheaper, give a discount on the bill; the MRP must match the pack.</p></div>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Batch</th><th>Expiry</th><th class="num">In stock</th><th class="num">MRP / ${w}</th><th class="num">Cost / ${w}</th><th class="num">You make</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+    </div>
+
+    <div class="block">
+      <div class="block-head"><h3>Details</h3><p>Bills already made keep the old values. Changes apply from the next bill.</p></div>
+      <div class="block-body"><div class="formgrid">
+        <div class="field span2"><label for="dName">Name</label><input id="dName" value="${esc(p.name)}"></div>
+        <div class="field span2"><label for="dGeneric">Generic name</label><input id="dGeneric" value="${esc(p.generic)}"></div>
+        <div class="field span2"><label for="dMfr">Company</label><input id="dMfr" value="${esc(p.mfr)}"></div>
+        <div class="field"><label for="dGst">GST</label><select id="dGst">${opt([0, 5, 12, 18], p.gst, v => v + '%')}</select></div>
+        <div class="field"><label for="dSched">Schedule</label><select id="dSched">${opt(['OTC', 'G', 'H', 'H1', 'X'], p.sched)}</select></div>
+        <div class="field"><label for="dRack">Rack</label><input id="dRack" value="${esc(p.rack)}"></div>
+        <div class="field"><label for="dReorder">Remind me below (${plural(w, 2)})</label><input id="dReorder" inputmode="numeric" value="${p.reorderStrips}"></div>
+        <div class="field"><label for="dUnits">${cap(plural(p.base, 2))} per strip</label><input id="dUnits" inputmode="numeric" value="${p.unitsPerStrip}" ${locked ? 'disabled' : ''}>
+          ${locked ? '<div class="hint">Can’t change while this medicine is in stock.</div>' : ''}</div>
+        <div class="field"><label for="dHsn">HSN code</label><input id="dHsn" value="${esc(p.hsn)}"></div>
+      </div>
+      <div class="row2" style="margin-top:14px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+        <span class="muted" id="dMsg" style="font-size:14px">Every change is kept in the history below.</span>
+        <button class="btn primary" id="dSave">Save details</button></div></div>
+    </div>
+
+    <div class="block">
+      <div class="block-head"><h3>History</h3></div>
+      ${hist.length ? `<ul class="history">${hist.map(h => { const [d, t] = whenText(h.at); return `<li>
+        <span class="when"><b>${d}</b>${t}</span>
+        <span><span class="kind ${h.kind}">${h.kind === 'price' ? 'Price' : 'Details'}</span>${esc(h.change)}${h.example ? '<span class="eg">example</span>' : ''}</span>
+        ${h.why ? `<span class="why">${esc(h.why)}</span>` : ''}</li>`; }).join('')}</ul>`
+      : `<p class="muted" style="margin:0;padding:12px 16px">No changes yet.</p>`}
+    </div>`;
+
+  $('editor').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { editingBatchId = b.dataset.edit; renderEditor(); $('nMrp').select(); });
+  if (editingBatchId) wirePriceForm(p);
+  $('dSave').onclick = () => saveDetails(p);
+}
+
+function wirePriceForm(p) {
+  const b = BATCHES.find(x => x.id === editingBatchId);
+  const check = (saving = false) => {
+    const mrp = toNum($('nMrp').value), cost = toNum($('nCost').value), why = $('nWhy').value;
+    const box = $('pcheck');
+    const bad = t => { box.className = 'msg bad wide'; box.textContent = t; return null; };
+    if (!(mrp > 0)) return bad('Enter the MRP printed on the pack.');
+    if (!(cost >= 0)) return bad('Enter the cost price.');
+    if (cost > mrp) return bad(`Cost ${rupee(cost)} is more than the MRP ${rupee(mrp)} — you would lose money on every sale. Check for a typing mistake.`);
+    if (mrp === b.mrp && cost === b.ptr) { box.className = 'msg wide'; box.textContent = 'Nothing changed yet.'; return null; }
+    if (saving && !why) return bad('Choose why you are changing it.');
+    const jump = (a, c) => a > 0 ? Math.abs(c - a) / a * 100 : 0;
+    const big = jump(b.mrp, mrp) > 25 || jump(b.ptr, cost) > 25;
+    box.className = 'msg wide ' + (big ? 'warn' : 'ok');
+    box.textContent = (big ? 'That’s a big change — please check it once more. ' : '') +
+      `You’d make ${rupee(profitPerPack(mrp, p.gst, cost))} per ${packWord(p)} (${profitPct(mrp, p.gst, cost).toFixed(1)}%), was ${rupee(profitPerPack(b.mrp, p.gst, b.ptr))}.`;
+    return { mrp, cost, why };
+  };
+  ['nMrp', 'nCost', 'nWhy'].forEach(id => $(id).oninput = () => check());
+  check();
+  $('pCancel').onclick = () => { editingBatchId = null; renderEditor(); };
+  $('pSave').onclick = () => {
+    const r = check(true); if (!r) return;
+    const parts = [];
+    if (r.mrp !== b.mrp) parts.push(`MRP ${rupee(b.mrp)} → ${rupee(r.mrp)}`);
+    if (r.cost !== b.ptr) parts.push(`cost ${rupee(b.ptr)} → ${rupee(r.cost)}`);
+    p.history.push({ at:new Date(), kind:'price', change:`Batch ${b.batchNo}: ${parts.join(', ')}`, why:r.why });
+    b.mrp = r.mrp; b.ptr = r.cost; editingBatchId = null;
+    renderEditor(); renderPList(); renderAttn();
+    toast(`New price saved. Bills already made keep the old price.`);
+  };
+}
+
+function saveDetails(p) {
+  const next = { name:$('dName').value.trim(), generic:$('dGeneric').value.trim(), mfr:$('dMfr').value.trim(),
+    gst:Number($('dGst').value), sched:$('dSched').value, rack:$('dRack').value.trim(),
+    reorderStrips:Number($('dReorder').value), unitsPerStrip:Number($('dUnits').value), hsn:$('dHsn').value.trim() };
+  const label = { name:'Name', generic:'Generic name', mfr:'Company', gst:'GST', sched:'Schedule', rack:'Rack',
+    reorderStrips:'Reminder level', unitsPerStrip:'Per strip', hsn:'HSN' };
+  const say = t => { $('dMsg').textContent = t; };
+  if (!next.name) return say('The name can’t be empty.');
+  if (!Number.isInteger(next.unitsPerStrip) || next.unitsPerStrip < 1) return say('Per strip must be a whole number.');
+  if (!Number.isInteger(next.reorderStrips) || next.reorderStrips < 0) return say('The reminder level must be a whole number.');
+  const changed = Object.keys(next).filter(k => next[k] !== p[k]);
+  if (!changed.length) return say('Nothing changed yet.');
+  const show = (k, v) => k === 'gst' ? v + '%' : v;
+  p.history.push({ at:new Date(), kind:'details', why:'',
+    change:changed.map(k => `${label[k]} ${show(k, p[k])} → ${show(k, next[k])}`).join('; ') });
+  changed.forEach(k => p[k] = next[k]);
+  renderEditor(); renderPList();
+  toast(changed.includes('gst') ? `Saved. New bills charge ${p.gst}% GST; old bills keep theirs.` : 'Details saved.');
+}
+
+/* =================================================================== today */
+
+function expiringSoon() {
+  return BATCHES.filter(b => b.qty > 0 && daysUntil(b.expiry) >= 0 && daysUntil(b.expiry) <= 30)
+    .map(b => { const p = productById(b.productId); return { p, b, value:linePaiseCost(b.ptr, p.unitsPerStrip, b.qty) }; });
+}
+/* Stock still inside the distributor's return window, but getting close to its end. */
+function returnable() {
+  return BATCHES.filter(b => {
+    if (b.qty <= 0) return false;
+    const d = daysUntil(b.expiry), win = supplierById(b.sup).returnMonths * 30;
+    return d > win && d <= win + 60;
+  }).map(b => { const p = productById(b.productId); return { p, b, s:supplierById(b.sup), value:linePaiseCost(b.ptr, p.unitsPerStrip, b.qty) }; });
+}
+function askedToday() {
+  const c = {};
+  stockouts.filter(s => startOfDay(s.at) - startOfDay(new Date()) === 0).forEach(s => c[s.term] = (c[s.term] || 0) + 1);
+  return Object.entries(c).sort((a, b) => b[1] - a[1]);
+}
+
+function renderAttn() {
+  $('aExp').textContent = rsR(expiringSoon().reduce((s, x) => s + x.value, 0));
+  $('aRet').textContent = rsR(returnable().reduce((s, x) => s + x.value, 0));
+  $('aOut').textContent = askedToday().reduce((s, x) => s + x[1], 0);
+  if (view === 'today') renderToday();
+}
+
+/* =================================================================== sales: day and month
+   The same calculation as daily_summary() and monthly_summary() in the
+   database (migration 0007):
+     sales     = what customers paid, minus refunds
+     you made  = value before GST, minus cost, with returns taken back out
+   A month is the sum of its days, so the two views can never disagree. */
+
+const dkey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const fromKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const RETURNS = [];                  // { at, day, billNo, p, qty, refund, taxable, cost, pay }
+let salesMode = 'day';
+let salesDay = startOfDay(new Date());
+let salesMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+
+function dayTotals(key) {
+  const t = { key, bills:0, gross:0, taxable:0, gst:0, cost:0, refunds:0, returns:0,
+              pay:{ cash:0, upi:0, card:0, credit:0 }, sold:{}, made:{}, byRate:{} };
+  for (const b of savedBills) {
+    if (b.day !== key) continue;
+    t.bills++; t.gross += b.payable; t.pay[b.pay] += b.payable;
+    for (const l of b.lines) {
+      const m = lineMoney(l.mrp, l.gst, l.p.unitsPerStrip, l.qty);
+      const c = linePaiseCost(l.ptr, l.p.unitsPerStrip, l.qty);
+      t.taxable += m.taxable; t.gst += m.gst; t.cost += c;
+      t.sold[l.p.name] = (t.sold[l.p.name] || 0) + m.gross;
+      t.made[l.p.name] = (t.made[l.p.name] || 0) + m.taxable - c;
+      const r = t.byRate[l.gst] || (t.byRate[l.gst] = { taxable:0, gst:0 });
+      r.taxable += m.taxable; r.gst += m.gst;
+    }
+  }
+  for (const r of RETURNS) {
+    if (r.day !== key) continue;
+    t.returns++; t.refunds += r.refund;
+    t.taxable -= r.taxable; t.gst -= r.refund - r.taxable; t.cost -= r.cost;
+    if (r.pay === 'cash') t.pay.cash -= r.refund;
+  }
+  t.sales = t.gross - t.refunds;
+  t.profit = t.taxable - t.cost;
+  return t;
+}
+
+function sumDays(keys) {
+  const s = { days:[], bills:0, gross:0, taxable:0, gst:0, cost:0, refunds:0, returns:0, sales:0, profit:0,
+              pay:{ cash:0, upi:0, card:0, credit:0 }, sold:{}, made:{}, byRate:{} };
+  for (const k of keys) {
+    const t = dayTotals(k); s.days.push(t);
+    for (const f of ['bills', 'gross', 'taxable', 'gst', 'cost', 'refunds', 'returns', 'sales', 'profit']) s[f] += t[f];
+    for (const p in t.pay) s.pay[p] += t.pay[p];
+    for (const n in t.sold) s.sold[n] = (s.sold[n] || 0) + t.sold[n];
+    for (const n in t.made) s.made[n] = (s.made[n] || 0) + t.made[n];
+    for (const r in t.byRate) { const x = s.byRate[r] || (s.byRate[r] = { taxable:0, gst:0 }); x.taxable += t.byRate[r].taxable; x.gst += t.byRate[r].gst; }
+  }
+  return s;
+}
+
+const monthKeys = (first, uptoDay) => {
+  const n = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+  return Array.from({ length:Math.min(n, uptoDay ?? n) }, (_, i) => dkey(new Date(first.getFullYear(), first.getMonth(), i + 1)));
+};
+const pct = (a, b) => b > 0 ? Math.round((a - b) / b * 1000) / 10 : null;
+const trend = (a, b, what) => {
+  const c = pct(a, b);
+  if (c === null) return `No sales ${what} to compare with`;
+  if (Math.abs(c) < 0.5) return `Same as ${what}`;
+  return `${c > 0 ? '▲' : '▼'} ${Math.abs(c)}% ${c > 0 ? 'more' : 'less'} than ${what}`;
+};
+const madePct = t => t.taxable > 0 ? (t.profit / t.taxable * 100).toFixed(1) + '%' : '—';
+const topList = (obj, n) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n)
+  .map(([name, v]) => `<li><span>${esc(name)}</span><span class="val">${rsR(v)}</span></li>`).join('');
+const longDay = d => d.toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+const monthName = d => d.toLocaleDateString('en-IN', { month:'long', year:'numeric' });
+
+function renderToday() {                          // the Sales screen
+  const isDay = salesMode === 'day';
+  $('modeDay').setAttribute('aria-pressed', String(isDay));
+  $('modeMonth').setAttribute('aria-pressed', String(!isDay));
+  $('dayBody').hidden = !isDay; $('monthBody').hidden = isDay;
+  $('prevBtn').textContent = isDay ? '‹ Previous day' : '‹ Previous month';
+  $('nextBtn').textContent = isDay ? 'Next day ›' : 'Next month ›';
+  const today = startOfDay(new Date());
+  if (isDay) renderDay(today); else renderMonth(today);
+}
+
+function renderDay(today) {
+  const d = salesDay, isToday = +d === +today;
+  const t = dayTotals(dkey(d));
+  const lw = dayTotals(dkey(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 7)));
+  const weekday = d.toLocaleDateString('en-IN', { weekday:'long' });
+  $('periodLabel').textContent = isToday ? 'Today, ' + longDay(d) : longDay(d);
+  $('nextBtn').disabled = isToday; $('nowBtn').hidden = isToday;
+  $('salesLead').textContent = isToday
+    ? 'Updates with every bill. The same summary reaches your phone at 9 PM.'
+    : 'The day’s final figures.';
+  const eg = savedBills.some(b => b.day === t.key && b.example) ? ' · example bills' : '';
+
+  $('tiles').innerHTML = `
+    <div class="tile lead"><div class="k">Sales</div><div class="v">${rsR(t.sales)}</div>
+      <div class="s">${trend(t.sales, lw.sales, 'last ' + weekday)}</div></div>
+    <div class="tile"><div class="k">You made</div><div class="v">${rsR(t.profit)}</div><div class="s">${madePct(t)} after GST and cost</div></div>
+    <div class="tile"><div class="k">Bills</div><div class="v">${t.bills}</div><div class="s">average ${rsR(t.bills ? t.gross / t.bills : 0)}${eg}</div></div>
+    <div class="tile"><div class="k">Cash</div><div class="v">${rsR(t.pay.cash)}</div><div class="s">UPI ${rsR(t.pay.upi)} · Card ${rsR(t.pay.card)} · Credit ${rsR(t.pay.credit)}</div></div>`;
+
+  // "Needs attention" and the cash count are about right now, so only today shows them.
+  $('attnBlock').hidden = !isToday; $('closeBlock').hidden = !isToday;
+  if (isToday) renderAttention();
+  $('topList').innerHTML = topList(t.sold, 5) || `<li class="muted">No bills on this day.</li>`;
+  $('dayExtras').innerHTML = `
+    <li><span>Returns</span><span class="val">${t.returns ? `${t.returns} · ${rsR(t.refunds)} refunded` : 'None'}</span></li>
+    <li><span>GST collected <span class="muted">(goes to the government)</span></span><span class="val">${rsR(t.gst)}</span></li>
+    <li><span>Same day last week</span><span class="val">${rsR(lw.sales)}</span></li>`;
+  $('cashExpected').innerHTML = `Today’s cash bills, less cash refunds, came to <b>${rsR(t.pay.cash)}</b>. Add the cash you opened with, and that is what the drawer should hold.`;
+}
+
+function renderAttention() {
+  const exp = expiringSoon(), ret = returnable(), asked = askedToday();
+  const bySup = {};
+  ret.forEach(r => { (bySup[r.s.name] = bySup[r.s.name] || []).push(r); });
+  const section = (title, body) => `<div style="padding:12px 16px 4px;font-weight:600">${title}</div><ul class="attnlist">${body}</ul>`;
+  $('attnDetail').innerHTML =
+    (exp.length ? section('Expiring within 30 days — sell these first',
+      exp.map(x => `<li><span>${esc(x.p.name)} <span class="muted">· batch ${esc(x.b.batchNo)} · ${mmYYYY(x.b.expiry)} · ${esc(formatQuantity(x.b.qty, x.p))}</span></span><span class="val">${rsR(x.value)}</span></li>`).join('')) : '') +
+    (ret.length ? section('Send back to the distributor this week — they still accept it',
+      Object.entries(bySup).map(([s, list]) => `<li><span>${esc(s)} <span class="muted">· ${list.map(r => esc(r.p.name)).join(', ')}</span></span><span class="val">${rsR(list.reduce((a, r) => a + r.value, 0))}</span></li>`).join('')) : '') +
+    (asked.length ? section('Customers asked for, not in stock',
+      asked.map(([t, c]) => `<li><span>${esc(t)}</span><span class="val">${c}×</span></li>`).join('')) : '') ||
+    `<p class="muted" style="margin:0;padding:14px 16px">Nothing needs you right now.</p>`;
+}
+
+function renderMonth(today) {
+  const first = salesMonth;
+  const isCurrent = first.getFullYear() === today.getFullYear() && first.getMonth() === today.getMonth();
+  const daysSoFar = isCurrent ? today.getDate() : undefined;
+  const cur = sumDays(monthKeys(first, daysSoFar));
+  const prevFirst = new Date(first.getFullYear(), first.getMonth() - 1, 1);
+  // Part-way through a month, compare with the same days of last month —
+  // comparing 22 days with a whole month would always look like a bad month.
+  const prev = sumDays(monthKeys(prevFirst, daysSoFar));
+  const prevLabel = isCurrent
+    ? `1–${Math.min(daysSoFar, new Date(first.getFullYear(), first.getMonth(), 0).getDate())} ${prevFirst.toLocaleDateString('en-IN', { month:'long' })}`
+    : monthName(prevFirst);
+
+  $('periodLabel').textContent = isCurrent ? `${monthName(first)} · so far` : monthName(first);
+  $('nextBtn').disabled = isCurrent; $('nowBtn').hidden = isCurrent;
+  $('salesLead').textContent = isCurrent
+    ? `The first ${daysSoFar} days of the month. On the 1st you also get the full month as a PDF, with a spreadsheet for your CA.`
+    : 'The whole month.';
+
+  const open = cur.days.filter(d => d.bills > 0);
+  const best = open.slice().sort((a, b) => b.sales - a.sales)[0];
+  $('tiles').innerHTML = `
+    <div class="tile lead"><div class="k">Sales</div><div class="v">${rsR(cur.sales)}</div><div class="s">${trend(cur.sales, prev.sales, prevLabel)}</div></div>
+    <div class="tile"><div class="k">You made</div><div class="v">${rsR(cur.profit)}</div><div class="s">${madePct(cur)} after GST and cost</div></div>
+    <div class="tile"><div class="k">Bills</div><div class="v">${cur.bills.toLocaleString('en-IN')}</div><div class="s">average ${rsR(cur.bills ? cur.gross / cur.bills : 0)} · ${open.length} days open</div></div>
+    <div class="tile"><div class="k">Best day</div><div class="v">${best ? rsR(best.sales) : '—'}</div><div class="s">${best ? fromKey(best.key).toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'short' }) : 'No sales yet'}</div></div>`;
+
+  const allDays = sumDays(monthKeys(first)).days;
+  drawChart(allDays.map(d => ({ ...d, future: fromKey(d.key) > today })));
+  $('dayTable').innerHTML = allDays.filter(d => fromKey(d.key) <= today).map(d =>
+    `<tr><td>${fromKey(d.key).toLocaleDateString('en-IN', { weekday:'short', day:'numeric', month:'short' })}</td>
+     <td class="num">${d.bills}</td><td class="num">${rsR(d.sales)}</td><td class="num">${rsR(d.profit)}</td></tr>`).join('');
+
+  $('mTopSales').innerHTML  = topList(cur.sold, 8) || `<li class="muted">No sales yet.</li>`;
+  $('mTopProfit').innerHTML = topList(cur.made, 8) || `<li class="muted">No sales yet.</li>`;
+
+  // Average sales for each weekday, over the days the shop was open.
+  const names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const wk = names.map((_, i) => { const ds = open.filter(d => (fromKey(d.key).getDay() + 6) % 7 === i);
+    return ds.length ? ds.reduce((s, d) => s + d.sales, 0) / ds.length : 0; });
+  const wkMax = Math.max(1, ...wk);
+  $('weekdays').innerHTML = `<div class="wk">${names.map((n, i) => `
+    <span>${n.slice(0, 3)}</span><span class="wktrack"><span class="wkbar" style="width:${(wk[i] / wkMax * 100).toFixed(1)}%"></span></span>
+    <span class="val">${wk[i] ? rsR(wk[i]) : '—'}</span>`).join('')}</div>`;
+
+  $('mMoney').innerHTML = `
+    <li><span>Cash</span><span class="val">${rsR(cur.pay.cash)}</span></li>
+    <li><span>UPI</span><span class="val">${rsR(cur.pay.upi)}</span></li>
+    <li><span>Card</span><span class="val">${rsR(cur.pay.card)}</span></li>
+    <li><span>Credit given</span><span class="val">${rsR(cur.pay.credit)}</span></li>
+    <li><span>Returns refunded <span class="muted">(${cur.returns})</span></span><span class="val">${rsR(cur.refunds)}</span></li>`;
+
+  const rates = Object.keys(cur.byRate).map(Number).sort((a, b) => a - b);
+  let tt = 0, tc = 0, ts = 0;
+  $('gstTable').innerHTML = rates.map(r => {
+    const x = cur.byRate[r], c = Math.round(x.gst / 2), s = x.gst - c;
+    tt += x.taxable; tc += c; ts += s;
+    return `<tr><td>${r}%</td><td class="num">${rs(x.taxable)}</td><td class="num">${rs(c)}</td><td class="num">${rs(s)}</td><td class="num">${rs(x.taxable + x.gst)}</td></tr>`;
+  }).join('') + (rates.length ? `<tr class="strong"><td>Total</td><td class="num">${rs(tt)}</td><td class="num">${rs(tc)}</td><td class="num">${rs(ts)}</td><td class="num">${rs(tt + tc + ts)}</td></tr>` : '');
+  const monthBills = savedBills.filter(b => b.day.startsWith(dkey(first).slice(0, 7))).map(b => b.no).sort();
+  const monthCN = RETURNS.filter(r => r.day.startsWith(dkey(first).slice(0, 7)));
+  $('docList').innerHTML = `
+    <li><span>Bills issued</span><span class="val">${monthBills.length ? `${monthBills[0]} to ${monthBills[monthBills.length - 1]} · ${monthBills.length}` : 'None'}</span></li>
+    <li><span>Credit notes (returns)</span><span class="val">${monthCN.length}</span></li>`;
+}
+
+/* One series, one colour. Bars start at zero; the best day carries the only
+   label; every bar shows its figures on hover or keyboard focus. */
+function drawChart(days) {
+  const box = $('chart');
+  const W = Math.max(300, box.clientWidth - 24), H = 250;
+  const m = { l:68, r:8, t:24, b:28 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const maxR = Math.max(1, ...days.map(d => d.sales / 100));
+  const raw = maxR / 4, pow = 10 ** Math.floor(Math.log10(raw)), f = raw / pow;
+  const step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * pow;
+  const top = Math.ceil(maxR / step) * step;
+  const y = v => m.t + ph - v / top * ph;
+  const slot = pw / days.length, bw = Math.max(2, slot - 2);
+  const best = days.reduce((a, d) => d.sales > (a?.sales ?? 0) ? d : a, null);
+
+  let g = '';
+  for (let v = 0; v <= top + 1e-9; v += step) {
+    g += `<line class="gridline" x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/>
+          <text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">₹${Math.round(v).toLocaleString('en-IN')}</text>`;
+  }
+  let bars = '', hits = '', labels = '';
+  days.forEach((d, i) => {
+    const x = m.l + i * slot + (slot - bw) / 2, v = d.sales / 100, dayNum = i + 1;
+    if (dayNum === 1 || dayNum % 5 === 0) labels += `<text x="${x + bw / 2}" y="${H - 8}" text-anchor="middle">${dayNum}</text>`;
+    if (d.future || v <= 0) return;
+    const yt = y(v), h = m.t + ph - yt, r = Math.min(4, bw / 2, h);
+    bars += `<path class="bar" id="bar${i}" d="M${x},${m.t + ph} V${yt + r} Q${x},${yt} ${x + r},${yt} H${x + bw - r} Q${x + bw},${yt} ${x + bw},${yt + r} V${m.t + ph} Z"/>`;
+    if (best && d.key === best.key) labels += `<text class="barlabel" x="${x + bw / 2}" y="${yt - 7}" text-anchor="middle">${rsR(d.sales)}</text>`;
+    const dt = fromKey(d.key).toLocaleDateString('en-IN', { weekday:'short', day:'numeric', month:'short' });
+    hits += `<rect class="hit" x="${m.l + i * slot}" y="${m.t}" width="${slot}" height="${ph}" tabindex="0" data-i="${i}"
+               aria-label="${dt}: sales ${rsR(d.sales)}, ${d.bills} bills, you made ${rsR(d.profit)}"/>`;
+  });
+  box.innerHTML = `<svg width="${W}" height="${H}" role="img" aria-label="Sales each day this month">
+      <g class="grid">${g}</g>${bars}
+      <line class="baseline" x1="${m.l}" x2="${W - m.r}" y1="${m.t + ph}" y2="${m.t + ph}"/>
+      <g class="axis">${labels}</g>${hits}</svg><div class="tip" id="tip" hidden></div>`;
+
+  const tip = $('tip');
+  const show = el => {
+    const i = Number(el.dataset.i), d = days[i];
+    box.querySelectorAll('.bar.on').forEach(b => b.classList.remove('on'));
+    $('bar' + i)?.classList.add('on');
+    tip.innerHTML = `<b>${fromKey(d.key).toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'short' })}</b>
+      <div>Sales <span class="val">${rsR(d.sales)}</span></div><div>Bills <span class="val">${d.bills}</span></div>
+      <div>You made <span class="val">${rsR(d.profit)}</span></div>`;
+    tip.hidden = false;
+    const x = m.l + i * slot + slot / 2 + 12;
+    tip.style.left = Math.min(Math.max(8, x - tip.offsetWidth / 2), W - tip.offsetWidth + 8) + 'px';
+    tip.style.top = '4px';
+  };
+  const hide = () => { tip.hidden = true; box.querySelectorAll('.bar.on').forEach(b => b.classList.remove('on')); };
+  box.querySelectorAll('.hit').forEach(h => {
+    h.addEventListener('mouseenter', () => show(h)); h.addEventListener('focus', () => show(h));
+    h.addEventListener('mouseleave', hide); h.addEventListener('blur', hide);
+  });
+}
+
+function checkCash() {
+  const counted = toNum($('cashCount').value), box = $('cashMsg'); box.hidden = false;
+  if (!(counted >= 0)) { box.className = 'msg bad'; box.textContent = 'Enter the amount you counted.'; return; }
+  const opening = toNum($('cashOpen').value) || 0;
+  const expected = opening + dayTotals(dkey(new Date())).pay.cash / 100;
+  const diff = Math.round((counted - expected) * 100);
+  if (diff === 0) { box.className = 'msg ok'; box.textContent = 'It matches. Good to close.'; }
+  else { box.className = 'msg warn'; box.textContent = diff < 0
+    ? `${rupee(-diff / 100)} less than expected. Check for a bill paid by UPI but marked cash, or change given wrongly.`
+    : `${rupee(diff / 100)} more than expected. Check for a cash bill that wasn’t saved.`; }
+}
+
+/* =================================================================== example history
+   About 75 days of example bills so both views show what they do on first
+   look. Past days don't touch today's stock; today's example bills do. Every
+   one is marked as an example. */
+(function seedExampleHistory() {
+  let r = 11; const rand = () => (r = (r * 16807) % 2147483647) / 2147483647;
+  const pool = PRODUCTS.filter(p => p.sched !== 'H1' && batchesFor(p.id).length);
+  const today0 = startOfDay(new Date());
+  const made = [];
+  for (let back = 75; back >= 0; back--) {
+    const day = new Date(today0.getFullYear(), today0.getMonth(), today0.getDate() - back);
+    const openAt = day.getTime() + 8.5 * 3600e3, closeAt = day.getTime() + 21.5 * 3600e3;
+    const endAt = back === 0 ? Math.min(Date.now(), closeAt) : closeAt;
+    if (endAt <= openAt) continue;
+    const busy = [0.85, 1.1, 1.0, 0.95, 1.0, 1.05, 1.15][day.getDay()] * (0.8 + rand() * 0.4);
+    const bills = Math.round(58 * busy * (endAt - openAt) / (closeAt - openAt));
+    for (let i = 0; i < bills; i++) {
+      const lines = [];
+      for (let k = 0, n = 1 + Math.floor(rand() * 2.4); k < n; k++) {
+        const p = pool[Math.floor(rand() * pool.length)];
+        const b = back === 0 ? nextBatch(p) : batchesFor(p.id)[0];
+        if (!b) continue;
+        const qty = p.unitsPerStrip > 1
+          ? (rand() < 0.25 ? Math.min(p.unitsPerStrip - 1, 4 + Math.floor(rand() * 6)) : p.unitsPerStrip * (1 + Math.floor(rand() * 2)))
+          : 1;
+        if (back === 0) { if (b.qty < qty) continue; b.qty -= qty; }
+        lines.push({ p, qty, mrp:b.mrp, gst:p.gst, ptr:b.ptr });
+      }
+      if (!lines.length) continue;
+      const gross = lines.reduce((s, l) => s + lineMoney(l.mrp, l.gst, l.p.unitsPerStrip, l.qty).gross, 0);
+      const at = new Date(openAt + rand() * (endAt - openAt));
+      made.push({ at, day:dkey(at), example:true, payable:Math.round(gross / 100) * 100, lines,
+                  pay:['cash', 'cash', 'upi', 'upi', 'upi', 'card', 'credit'][Math.floor(rand() * 7)] });
+    }
+  }
+  made.sort((a, b) => a.at - b.at).forEach(b => { b.no = billNoStr(); billSeq++; savedBills.push(b); });
+
+  // About one bill in sixty comes back: one strip, refunded in cash the same day.
+  savedBills.forEach(b => {
+    if (rand() > 1 / 60) return;
+    const l = b.lines.find(x => x.p.unitsPerStrip > 1 && x.qty >= x.p.unitsPerStrip);
+    if (!l) return;
+    const m = lineMoney(l.mrp, l.gst, l.p.unitsPerStrip, l.p.unitsPerStrip);
+    RETURNS.push({ at:b.at, day:b.day, billNo:b.no, p:l.p, qty:l.p.unitsPerStrip, pay:'cash', example:true,
+                   refund:m.gross, taxable:m.taxable, cost:linePaiseCost(l.ptr, l.p.unitsPerStrip, l.p.unitsPerStrip) });
+  });
+
+  const t0 = today0.getTime() + 9 * 3600e3;
+  stockouts.push({ term:'Zincovit', at:new Date(t0 + 2 * 3600e3), example:true },
+                 { term:'Zincovit', at:new Date(t0 + 5 * 3600e3), example:true },
+                 { term:'Dettol 500 ml', at:new Date(t0 + 3 * 3600e3), example:true });
+})();
+
+/* =================================================================== wiring */
+
+function setView(v) {
+  view = v;
+  ['bill', 'stock', 'products', 'today'].forEach(k => {
+    $('view-' + k).hidden = k !== v;
+    $('tab-' + k).setAttribute('aria-selected', String(k === v));
+  });
+  if (v === 'bill') { renderBill(); $('q').focus(); }
+  if (v === 'stock') { renderDelivery(); }
+  if (v === 'products') { renderPList(); renderEditor(); }
+  if (v === 'today') renderToday();
+  window.scrollTo(0, 0);
+}
+['bill', 'stock', 'products', 'today'].forEach(k => $('tab-' + k).onclick = () => setView(k));
+$('aMore').onclick = () => { salesMode = 'day'; salesDay = startOfDay(new Date()); setView('today'); };
+$('modeDay').onclick   = () => { salesMode = 'day'; renderToday(); };
+$('modeMonth').onclick = () => { salesMode = 'month'; renderToday(); };
+const stepPeriod = dir => {
+  if (salesMode === 'day') salesDay = new Date(salesDay.getFullYear(), salesDay.getMonth(), salesDay.getDate() + dir);
+  else salesMonth = new Date(salesMonth.getFullYear(), salesMonth.getMonth() + dir, 1);
+  renderToday();
+};
+$('prevBtn').onclick = () => stepPeriod(-1);
+$('nextBtn').onclick = () => stepPeriod(1);
+$('nowBtn').onclick = () => { salesDay = startOfDay(new Date()); salesMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1); renderToday(); };
+let resizeTimer;
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (view === 'today' && salesMode === 'month') renderToday(); }, 150); });
+
+$('q').addEventListener('input', () => { $('pick').hidden = true; picked = null; matches = search($('q').value); highlight = 0; renderResults(); });
+$('q').addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown') { e.preventDefault(); highlight = Math.min(highlight + 1, matches.length - 1); renderResults(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); highlight = Math.max(highlight - 1, 0); renderResults(); }
+  else if (e.key === 'Enter') { e.preventDefault(); if (matches.length) choose(highlight); }
+  else if (e.key === 'Escape') { resetSearch(); clearPanels(); }
+});
+$('qtyNum').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addLine(); } if (e.key === 'Escape') resetSearch(); });
+$('addBtn').onclick = addLine;
+$('pickCancel').onclick = resetSearch;
+$('paySeg').querySelectorAll('button').forEach(b => b.onclick = () => setPay(b.dataset.pay));
+$('saveBtn').onclick = saveBill;
+$('newBtn').onclick = clearBill;
+$('netBtn').onclick = () => {
+  online = !online;
+  if (online && waiting) {
+    const n = waiting; waiting = 0;
+    toast(`Internet is back. ${n} saved ${plural('bill', n)} went online.`);
+  }
+  renderStatus();
+};
+document.addEventListener('keydown', e => {                // optional shortcut; buttons do the same
+  if (view === 'bill' && e.key === 'F9') { e.preventDefault(); saveBill(); }
+});
+
+// add stock
+(function initStockForm() {
+  $('sSupplier').innerHTML += SUPPLIERS.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  $('medList').innerHTML = PRODUCTS.map(p => `<option value="${esc(p.name)}">`).join('');
+  $('sExpM').innerHTML = '<option value="">Month</option>' +
+    Array.from({ length:12 }, (_, i) => `<option value="${String(i + 1).padStart(2, '0')}">${String(i + 1).padStart(2, '0')}</option>`).join('');
+  const y0 = new Date().getFullYear();
+  $('sExpY').innerHTML = '<option value="">Year</option>' + Array.from({ length:6 }, (_, i) => `<option>${y0 + i}</option>`).join('');
+})();
+$('sScan').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); handleScan($('sScan').value); } });
+$('sSample').onclick = () => {
+  // An example Dolo 650 carton code: product, expiry June 2028, batch DL4471.
+  $('sScan').value = '010890123456789017280600\u001d10DL4471';
+  handleScan($('sScan').value);
+};
+$('sMed').addEventListener('change', onMedChosen);
+$('sMed').addEventListener('input', () => { if (PRODUCTS.some(p => p.name === $('sMed').value)) onMedChosen(); });
+$('sAdd').onclick = addDeliveryLine;
+$('dSave').onclick = saveDelivery;
+
+// medicines & prices, today
+$('pq').oninput = renderPList;
+$('cashCheck').onclick = checkCash;
+$('cashCount').addEventListener('keydown', e => { if (e.key === 'Enter') checkCash(); });
+
+let toastTimer;
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 3800);
+}
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
+
+renderStatus(); renderBill(); renderAttn(); setPay('cash');
+$('q').focus();
+</script>
+</body>
+</html>

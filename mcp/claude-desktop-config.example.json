@@ -1,0 +1,17 @@
+{
+  "//": "Copy the mcpServers block into claude_desktop_config.json. Restart Claude after editing.",
+  "mcpServers": {
+    "sri-nachiya-medicals": {
+      "command": "node",
+      "args": [
+        "--experimental-strip-types",
+        "--no-warnings",
+        "/absolute/path/to/sri-nachiya-medicals/mcp/server.ts"
+      ],
+      "env": {
+        "SNM_REPORTING_DATABASE_URL": "postgres://snm_reporting:PASSWORD@db.<ref>.supabase.co:5432/postgres",
+        "SNM_SHOP_ID": "00000000-0000-0000-0000-000000000000"
+      }
+    }
+  }
+}

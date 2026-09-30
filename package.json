@@ -1,0 +1,28 @@
+{
+  "name": "sri-nachiya-medicals",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Stock and billing system for Sri Nachiya Medicals, Coimbatore",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "mcp": "node --experimental-strip-types --no-warnings mcp/server.ts",
+    "mcp:smoke": "node --experimental-strip-types --no-warnings scripts/smoke-test.ts",
+    "pos": "node --experimental-strip-types scripts/serve-pos.ts",
+    "db:push": "supabase db push",
+    "test:db": "scripts/test-db.sh",
+    "test:app": "node --test tests/app/*.test.js",
+    "test:qr": "python3 tests/app/decode-qr.py",
+    "test:camera": "node tests/app/camera-check.mjs",
+    "shop": "node apps/shop/server.js",
+    "demo": "node apps/shop/demo-data.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "pg": "^8.13.0",
+    "zod": "^3.25.0"
+  }
+}

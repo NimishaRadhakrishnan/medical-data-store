@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sri Nachiya Medicals</title>
+<!-- Drawn here in the page itself: a file would be one more thing to fetch. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23115740'/%3E%3Cpath d='M16 8v16M8 16h16' stroke='white' stroke-width='4.5' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <span class="shopname" id="shopName">Sri Nachiya Medicals</span>
+  <nav class="tabs" role="tablist" aria-label="Screens">
+    <button class="tab" role="tab" id="tab-bill"    aria-selected="true">New bill</button>
+    <button class="tab" role="tab" id="tab-stock"   aria-selected="false">Add stock</button>
+    <button class="tab" role="tab" id="tab-meds"    aria-selected="false">Medicines</button>
+    <button class="tab" role="tab" id="tab-reports" aria-selected="false">Reports</button>
+    <button class="tab" role="tab" id="tab-setup"   aria-selected="false">Settings</button>
+  </nav>
+  <span class="spacer"></span>
+  <button class="tab" id="lockBtn" hidden title="Ask for the PIN again before anything is changed">Lock now</button>
+  <button class="tab" id="themeBtn" title="Switch between light and dark screens">Dark screen</button>
+  <span class="status"><span class="dot" id="healthDot"></span><span id="healthText">Working on this computer</span></span>
+</header>
+
+<div class="alerts" id="alerts" hidden></div>
+
+<!-- ================================================ NEW BILL -->
+<main class="view" id="v-bill" role="tabpanel">
+  <div class="grid2">
+    <section>
+      <div class="searchwrap">
+        <input id="q" autocomplete="off" spellcheck="false" placeholder="Type a medicine name, or scan the label" aria-label="Find a medicine">
+        <div class="row" style="margin:7px 2px 0;align-items:center;gap:10px">
+          <p class="muted" style="margin:0;font-size:14px;flex:1">Type the first few letters, then click it or press Enter —
+            or scan the shop's own label on the box.</p>
+          <button class="btn small" id="bCamBtn" hidden>Scan with the camera</button>
+        </div>
+        <div id="bCamPanel" hidden style="margin-top:10px">
+          <video id="bCamView" playsinline muted style="width:100%;max-width:360px;border-radius:5px;background:#000"></video>
+          <div class="row" style="margin-top:8px"><button class="btn small" id="bCamStop">Stop the camera</button>
+            <span class="muted">Hold the label in the picture. It keeps reading, one strip after another.</span></div>
+        </div>
+        <div class="results" id="results" hidden role="listbox"></div>
+      </div>
+
+      <div class="pick" id="pick" hidden>
+        <div class="what"><span class="muted" style="font-size:14px">How many?</span><b id="pickName"></b><span class="sub" id="pickInfo"></span></div>
+        <div class="field"><label for="qtyNum">Quantity</label><input id="qtyNum" inputmode="numeric" value="1"></div>
+        <div><div style="font-size:14px;font-weight:500;margin-bottom:5px" id="unitLabel">Sold as</div><div class="seg" id="unitSeg" role="group" aria-labelledby="unitLabel"></div></div>
+        <button class="btn primary" id="addBtn">Add to bill</button>
+        <button class="btn" id="pickCancel">Cancel</button>
+      </div>
+
+      <div id="billMsg"></div>
+
+      <div class="block" style="margin-top:14px">
+        <div class="block-head"><h3>This bill</h3><span class="muted" id="billCount"></span></div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Medicine</th><th>Batch · Expiry</th><th class="num">Quantity</th><th class="num">MRP</th><th class="num">Amount</th><th></th></tr></thead>
+            <tbody id="billLines"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="billEmpty"><strong>No medicines yet</strong>Search above to start the bill.</div>
+      </div>
+
+      <div class="block" id="rxBlock" hidden>
+        <div class="block-head"><h3>Prescription record needed (Schedule H1)</h3>
+          <p>The law asks for the doctor and patient. The bill cannot be saved without them.</p></div>
+        <div class="block-body formgrid">
+          <div class="field span2"><label for="rxDoctor">Doctor's name</label><input id="rxDoctor"></div>
+          <div class="field span2"><label for="rxPatient">Patient's name</label><input id="rxPatient"></div>
+          <div class="field span4"><label for="rxAddress">Patient's address</label><input id="rxAddress"></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="rail">
+      <div class="totals">
+        <div class="trow"><span>Before GST</span><b id="tTaxable">₹0.00</b></div>
+        <div class="trow"><span>GST</span><b id="tGst">₹0.00</b></div>
+        <div class="trow"><span>Rounded by</span><b id="tRound">₹0.00</b></div>
+        <div class="trow grand"><span>To pay</span><b id="tTotal">₹0</b></div>
+      </div>
+      <div>
+        <div style="font-size:14px;font-weight:500;margin-bottom:5px" id="payLabel">Paid by</div>
+        <div class="seg" id="paySeg" role="group" aria-labelledby="payLabel" style="display:flex">
+          <button data-pay="cash" aria-pressed="true" style="flex:1">Cash</button>
+          <button data-pay="upi" aria-pressed="false" style="flex:1">UPI</button>
+          <button data-pay="card" aria-pressed="false" style="flex:1">Card</button>
+          <button data-pay="credit" aria-pressed="false" style="flex:1">Credit</button>
+        </div>
+      </div>
+      <button class="btn primary big" id="saveBill" disabled>Save and print bill</button>
+      <button class="btn" id="clearBill">Clear this bill</button>
+      <div class="block">
+        <div class="block-head"><h3>Last bills</h3></div>
+        <div class="tablewrap"><table><tbody id="recentBills"></tbody></table></div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<!-- ================================================ ADD STOCK -->
+<main class="view" id="v-stock" role="tabpanel" hidden>
+  <h2 style="font-size:23px;margin-bottom:4px">Add stock from a delivery</h2>
+  <p class="muted" style="margin:0 0 16px">Enter each medicine from the distributor's invoice, then save. Everything is stored on this computer.</p>
+
+  <div class="block">
+    <div class="block-body formgrid">
+      <div class="field span2"><label for="dSupplier">Distributor</label>
+        <div class="row"><select id="dSupplier" style="flex:1"><option value="">Choose…</option></select>
+          <button class="btn small" id="newSupplier">Add new</button>
+          <button class="btn small" id="editSupplier">Edit</button>
+          <button class="btn small" id="delSupplier">Remove</button></div>
+        <div class="hint">Remove takes the chosen distributor off this list. Past deliveries keep their name.</div></div>
+      <div class="field"><label for="dInvoice">Invoice number <span class="muted">(optional)</span></label><input id="dInvoice" autocomplete="off"></div>
+      <div class="field"><label for="dDisc">Discount %</label>
+        <input id="dDisc" inputmode="decimal" value="0" autocomplete="off">
+        <p class="muted" style="margin:4px 0 0">The <b>Dis %</b> column on the invoice. Type it once
+          and it applies to every medicine below.</p></div>
+    </div>
+  </div>
+
+  <div class="block">
+    <div class="block-head"><h3>Add a medicine</h3><p>Scan the box, or fill it in from the invoice.</p></div>
+    <div class="block-body" style="display:grid;gap:14px">
+      <div class="row">
+        <div class="field" style="flex:1 1 280px"><label for="dScan">Scan the box</label>
+          <input id="dScan" autocomplete="off" placeholder="Click here, then scan — or just type below">
+          <div class="hint">Click this box first, then scan: the medicine, batch and expiry fill themselves.
+            Works with the shop's own printed label, and with the code on the pack if a USB scanner is plugged in.
+            Neither? Just type the details below — nothing is lost.</div></div>
+        <button class="btn" id="camBtn" hidden>Scan with the camera</button>
+      </div>
+      <div id="camPanel" hidden>
+        <video id="camView" playsinline muted style="width:100%;max-width:420px;border-radius:5px;background:#000"></video>
+        <div class="row" style="margin-top:8px"><button class="btn small" id="camStop">Stop the camera</button>
+          <span class="muted" id="camHint">Hold the barcode inside the picture.</span></div>
+      </div>
+      <div id="dScanMsg" hidden></div>
+      <div class="formgrid">
+        <div class="field span2"><label for="dMed">Medicine</label>
+          <div class="row"><input id="dMed" list="medList" autocomplete="off" placeholder="Start typing the name" style="flex:1">
+            <button class="btn small" id="newMedicine">New medicine</button></div>
+          <datalist id="medList"></datalist></div>
+        <div class="field"><label for="dBatch">Batch number</label><input id="dBatch" autocomplete="off"><div class="hint">The <b>BATCH</b> column.</div></div>
+        <div class="field"><label for="dExpM">Expiry (month / year)</label>
+          <div class="row" style="gap:6px"><select id="dExpM" aria-label="Expiry month" style="flex:1"></select><select id="dExpY" aria-label="Expiry year" style="flex:1"></select></div>
+          <div class="hint">The <b>EXP Date</b> column, written 05/28.</div></div>
+        <div class="field"><label for="dPacks" id="dPacksLabel">Strips received</label><input id="dPacks" inputmode="numeric"><div class="hint">The <b>QTY</b> column.</div></div>
+        <div class="field"><label for="dFree">Free strips</label><input id="dFree" inputmode="numeric" value="0"><div class="hint">The <b>Sch%/free</b> column, if any.</div></div>
+        <div class="field"><label for="dMrp" id="dMrpLabel">MRP per strip (₹)</label><input id="dMrp" inputmode="decimal"><div class="hint">The <b>New MRP</b> column.</div></div>
+        <div class="field"><label for="dCost" id="dCostLabel">Trade price per strip (₹)</label><input id="dCost" inputmode="decimal"><div class="hint">The <b>Trade Price</b> column, as printed. The discount above comes off it.</div></div>
+      </div>
+      <div id="dMsg" hidden></div>
+      <div><button class="btn primary" id="dAdd">Add to this delivery</button></div>
+    </div>
+  </div>
+
+  <div class="block">
+    <div class="block-head"><h3>This delivery</h3></div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Medicine</th><th>Batch · Expiry</th><th class="num">Received</th><th class="num">MRP</th><th class="num">Cost</th><th></th></tr></thead>
+      <tbody id="dLines"></tbody></table></div>
+    <div class="empty" id="dEmpty"><strong>Nothing added yet</strong>Check each line against the invoice, then save.</div>
+    <div class="block-body" style="border-top:1px solid var(--line)">
+      <button class="btn primary big" id="dSave" disabled>Save delivery and add to stock</button>
+    </div>
+  </div>
+</main>
+
+<!-- ================================================ MEDICINES -->
+<main class="view" id="v-meds" role="tabpanel" hidden>
+  <div class="row" style="margin-bottom:12px;align-items:center;gap:10px">
+    <h2 style="font-size:23px;margin:0;flex:1">Medicines</h2>
+    <button class="btn" id="bulkBtn">Add many at once</button>
+  </div>
+
+  <div class="block" id="bulkPanel" hidden style="margin-bottom:14px">
+    <div class="block-head"><h3>Add many medicines at once</h3>
+      <p>For opening the books, when the whole shelf has to go in. Nothing is saved until you have seen the list.</p></div>
+    <div class="block-body" style="display:grid;gap:12px">
+      <p class="muted" style="margin:0">
+        Keep the list in Excel, select the rows, copy, and paste them below — or choose a
+        <code>.csv</code> file. <a href="/medicines-template.csv" download>Download a blank sheet</a>
+        to see the columns. Only the medicine name is needed; everything else can be filled in later.</p>
+
+      <div class="row" style="gap:10px;align-items:flex-end">
+        <div class="field" style="flex:1 1 240px"><label for="bulkSupplier">Distributor for the opening stock <span class="muted">(only if the sheet has stock in it)</span></label>
+          <select id="bulkSupplier"><option value="">Not needed</option></select></div>
+        <div class="field"><label for="bulkFile">Or choose a file</label>
+          <input type="file" id="bulkFile" accept=".csv,.txt,text/csv,text/plain"></div>
+      </div>
+
+      <div class="field"><label for="bulkText">Paste the rows here</label>
+        <textarea id="bulkText" rows="8" spellcheck="false"
+          style="width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;padding:10px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--ink)"
+          placeholder="Dolo 650&#9;Paracetamol 650mg&#9;Micro Labs&#9;tablet&#9;15&#9;5&#9;OTC"></textarea></div>
+
+      <div class="row"><button class="btn primary" id="bulkCheck">Check the list</button>
+        <button class="btn" id="bulkClose">Close</button></div>
+      <div id="bulkResult"></div>
+    </div>
+  </div>
+
+  <div class="grid2" style="grid-template-columns:320px minmax(0,1fr)">
+    <div class="block">
+      <div class="block-body" style="padding:10px"><input id="mSearch" placeholder="Find a medicine…" aria-label="Find a medicine" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:var(--r)"></div>
+      <div class="tablewrap" style="max-height:70vh;overflow:auto"><table><tbody id="mList"></tbody></table></div>
+    </div>
+    <section id="mDetail"><div class="empty">Choose a medicine on the left.</div></section>
+  </div>
+</main>
+
+<!-- ================================================ REPORTS -->
+<main class="view" id="v-reports" role="tabpanel" hidden>
+  <div class="subtabs" role="tablist" aria-label="Reports">
+    <button class="subtab" role="tab" data-report="day"       aria-selected="true">Daily sales</button>
+    <button class="subtab" role="tab" data-report="range"     aria-selected="false">Sales by date range</button>
+    <button class="subtab" role="tab" data-report="payments"  aria-selected="false">Payment-wise</button>
+    <button class="subtab" role="tab" data-report="inventory" aria-selected="false">Stock on hand</button>
+    <button class="subtab" role="tab" data-report="low"       aria-selected="false">Low stock</button>
+    <button class="subtab" role="tab" data-report="expiry"    aria-selected="false">Expiry</button>
+    <button class="subtab" role="tab" data-report="deliveries" aria-selected="false">Deliveries</button>
+  </div>
+  <div class="row" id="reportControls" style="margin-bottom:14px"></div>
+  <div id="reportBody"></div>
+</main>
+
+<!-- ================================================ SETTINGS -->
+<main class="view" id="v-setup" role="tabpanel" hidden>
+  <div class="block">
+    <div class="block-head"><h3>Shop details</h3><p>These print on every bill. Take the GST and licence numbers from your certificates.</p></div>
+    <div class="block-body">
+      <div class="formgrid">
+        <div class="field span2"><label for="sName">Shop name</label><input id="sName"></div>
+        <div class="field span2"><label for="sPhone">Phone</label><input id="sPhone"></div>
+        <div class="field span2"><label for="sAddr1">Address line 1</label><input id="sAddr1"></div>
+        <div class="field span2"><label for="sAddr2">Address line 2</label><input id="sAddr2"></div>
+        <div class="field span2"><label for="sGstin">GSTIN</label><input id="sGstin" placeholder="From the GST certificate"></div>
+        <div class="field"><label for="sDl20">Drug licence (Form 20)</label><input id="sDl20">
+          <div class="hint">The retail licence. If one number covers both forms, put it here.</div></div>
+        <div class="field"><label for="sDl21">Drug licence (Form 21)</label><input id="sDl21">
+          <div class="hint">Leave empty if it is the same number.</div></div>
+        <div class="field span2"><label for="sPharm">Pharmacist</label><input id="sPharm"></div>
+        <div class="field"><label for="sPrefix">Bill number prefix</label><input id="sPrefix"></div>
+      </div>
+      <div class="row" style="margin-top:14px"><button class="btn primary" id="saveSettings">Save shop details</button><span id="setupMsg" class="muted"></span></div>
+    </div>
+  </div>
+
+  <div class="block">
+    <div class="block-head"><h3>Backups</h3><p>A copy is saved when the app starts, every evening, and whenever you press the button.</p></div>
+    <div class="block-body">
+      <div class="row"><button class="btn primary" id="backupNow">Back up now</button>
+        <button class="btn" id="checkDb">Check the figures</button>
+        <span class="muted" id="backupFolder"></span></div>
+      <div id="integrityMsg" style="margin-top:12px"></div>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Backup file</th><th class="num">Size</th><th></th></tr></thead>
+      <tbody id="backupList"></tbody></table></div>
+  </div>
+</main>
+
+<div class="toast" id="toast" hidden role="status"></div>
+<div id="print-area"></div>
+
+<dialog id="dlg"><form method="dialog" id="dlgForm"><div class="block-head"><h3 id="dlgTitle"></h3></div>
+  <div class="block-body" id="dlgBody"></div>
+  <div class="block-body row" style="border-top:1px solid var(--line);justify-content:flex-end">
+    <button class="btn" value="cancel">Cancel</button>
+    <button class="btn primary" id="dlgOk" value="ok">OK</button>
+  </div></form></dialog>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>
