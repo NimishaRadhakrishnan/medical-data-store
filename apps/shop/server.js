@@ -20,8 +20,8 @@ import * as Import from './import.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PUBLIC = join(HERE, 'public');
-const PORT = Number(process.env.SNM_PORT || 8123);
-const HOST = '127.0.0.1';                       // never 0.0.0.0: this is a shop counter, not a website
+const PORT = Number(process.env.PORT || process.env.SNM_PORT || 8123);
+const HOST = process.env.HOST || '127.0.0.1';                       // use 0.0.0.0 for cloud deployments
 
 const TYPES = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8',
   '.css':'text/css; charset=utf-8', '.json':'application/json', '.woff2':'font/woff2',
